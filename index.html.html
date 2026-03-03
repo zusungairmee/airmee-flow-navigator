@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airmee — Delivery Flow Navigator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --a-green:    #3DB54A;
+  --a-green-d:  #2A8E35;
+  --a-green-dk: #1C5C23;
+  --a-green-l:  #EBF7EC;
+  --a-red:      #E53935;
+  --a-red-d:    #B71C1C;
+  --a-red-l:    #FEECEC;
+  --a-amber:    #F59E0B;
+  --a-amber-l:  #FFFBEB;
+  --a-purple:   #7C3AED;
+  --a-purple-l: #F5F3FF;
+  --a-navy:     #1E3A5F;
+  --a-navy-l:   #EEF4FF;
+  --a-teal:     #0F766E;
+  --a-teal-l:   #CCFBF1;
+
+  /* Actor palette */
+  --c-retailer:  #0369A1; --c-retailer-l: #E0F2FE; --c-retailer-m: #0EA5E9;
+  --c-api:       #1C5C23; --c-api-l:     #EBF7EC;  --c-api-m:     #3DB54A;
+  --c-terminal:  #92400E; --c-terminal-l:#FEF9EE;  --c-terminal-m:#D97706;
+  --c-courier:   #A16207; --c-courier-l: #FFF7ED;  --c-courier-m: #EA580C;
+  --c-consumer:  #1D4ED8; --c-consumer-l:#EFF6FF;  --c-consumer-m:#3B82F6;
+  --c-admin:     #6B21A8; --c-admin-l:   #F5F3FF;  --c-admin-m:   #9333EA;
+  --c-store:     #0F766E; --c-store-l:   #CCFBF1;  --c-store-m:   #14B8A6;
+  --c-sms:       #BE185D; --c-sms-l:     #FCE7F3;  --c-sms-m:     #EC4899;
+
+  --border:   #E5E7EB;
+  --bg:       #F9FAFB;
+  --surface:  #FFFFFF;
+  --text:     #111827;
+  --text-2:   #4B5563;
+  --muted:    #9CA3AF;
+  --step-w:   172px;
+  --row-h:    96px;
+  --actor-w:  128px;
+}
+
+html, body { height:100%; overflow:hidden; }
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column; }
+
+/* ── Topbar ── */
+.topbar { height:50px; background:var(--a-green-dk); display:flex; align-items:center; padding:0 18px; flex-shrink:0; gap:8px; }
+.logo-mark { width:27px; height:27px; background:var(--a-green); border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:#fff; }
+.logo-name { font-family:'Syne',sans-serif; font-size:14px; font-weight:600; color:#fff; margin-left:6px; }
+.logo-div  { width:1px; height:14px; background:rgba(255,255,255,0.2); margin:0 8px; }
+.logo-sub  { font-size:11.5px; color:rgba(255,255,255,0.45); }
+
+/* ── Layer bar ── */
+.layer-bar { display:flex; flex-direction:column; border-bottom:2px solid var(--border); background:var(--surface); flex-shrink:0; }
+.layer-row { display:flex; align-items:center; min-height:42px; border-bottom:1px solid var(--border); padding:0 14px; gap:5px; }
+.layer-row:last-child { border-bottom:none; }
+.layer-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); width:66px; flex-shrink:0; }
+.chips { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+
+.chip { padding:4px 12px; border-radius:999px; border:1.5px solid var(--border); background:var(--surface); font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; color:var(--text-2); cursor:pointer; transition:all .13s; white-space:nowrap; display:flex; align-items:center; gap:4px; user-select:none; }
+.chip:hover { border-color:var(--a-green); color:var(--a-green-d); }
+.chip.svc-active { background:var(--a-green-dk); color:#fff; border-color:var(--a-green-dk); font-weight:600; }
+.chip.chk { font-size:11px; padding:3px 10px; }
+.chip.chk.on { background:var(--a-navy-l); color:var(--a-navy); border-color:var(--a-navy); }
+.chip.chk .dot { width:5px; height:5px; border-radius:50%; background:var(--a-navy); opacity:0; }
+.chip.chk.on .dot { opacity:1; }
+
+.chip.f-happy.on    { background:var(--a-green);  color:#fff; border-color:var(--a-green);  font-weight:600; }
+.chip.f-fail.on     { background:var(--a-red);    color:#fff; border-color:var(--a-red);   }
+.chip.f-amber.on    { background:var(--a-amber);  color:#fff; border-color:var(--a-amber); }
+.chip.f-navy.on     { background:var(--a-navy);   color:#fff; border-color:var(--a-navy);  }
+.chip.f-purple.on   { background:var(--a-purple); color:#fff; border-color:var(--a-purple);}
+
+/* ── Main ── */
+.main { display:flex; flex:1; overflow:hidden; }
+
+/* ── Journey ── */
+.journey-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.journey-scroll { flex:1; overflow:auto; scrollbar-width:auto; scrollbar-color:#CBD5E1 transparent; }
+.journey-scroll::-webkit-scrollbar { height:8px; width:5px; }
+.journey-scroll::-webkit-scrollbar-track { background:var(--bg); }
+.journey-scroll::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:99px; }
+.journey-scroll::-webkit-scrollbar-corner { background:var(--bg); }
+.journey-inner { display:inline-flex; flex-direction:column; min-width:100%; }
+
+/* Phase track */
+.phase-track { display:flex; position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--border); }
+.actor-spacer { width:var(--actor-w); flex-shrink:0; border-right:1px solid var(--border); background:var(--surface); }
+.phase-group { display:flex; flex-direction:column; border-right:1px solid var(--border); }
+.phase-group:last-child { border-right:none; }
+.phase-label-cell { padding:4px 12px; font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); background:var(--bg); border-bottom:1px solid var(--border); white-space:nowrap; }
+.phase-step-headers { display:flex; }
+.step-hdr { width:var(--step-w); flex-shrink:0; padding:5px 6px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-right:1px solid var(--border); cursor:pointer; transition:background .12s; text-align:center; }
+.step-hdr:last-child { border-right:none; }
+.step-hdr:hover { background:var(--a-green-l); }
+.step-hdr.col-sel { background:var(--a-green-l); }
+.step-num { font-size:8px; font-weight:700; font-family:'DM Mono',monospace; color:var(--muted); margin-bottom:2px; }
+.step-hdr-title { font-size:10px; font-weight:600; color:var(--text-2); line-height:1.3; padding:0 3px; }
+
+/* Actor rows */
+.actor-rows { display:flex; flex-direction:column; }
+.actor-row { display:flex; align-items:stretch; border-bottom:1px solid var(--border); min-height:var(--row-h); }
+.actor-row:last-child { border-bottom:none; }
+.actor-label { width:var(--actor-w); flex-shrink:0; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding:8px 11px; gap:2px; border-right:1px solid var(--border); position:sticky; left:0; z-index:10; background:var(--surface); }
+.actor-icon { font-size:15px; }
+.actor-name { font-size:10px; font-weight:700; line-height:1.2; }
+.actor-sub  { font-size:8.5px; color:var(--muted); }
+
+.row-retailer  .actor-label { background:var(--c-retailer-l); }  .row-retailer  .actor-name { color:var(--c-retailer); }
+.row-api       .actor-label { background:var(--c-api-l); }       .row-api       .actor-name { color:var(--c-api); }
+.row-terminal  .actor-label { background:var(--c-terminal-l); }  .row-terminal  .actor-name { color:var(--c-terminal); }
+.row-courier   .actor-label { background:var(--c-courier-l); }   .row-courier   .actor-name { color:var(--c-courier); }
+.row-consumer  .actor-label { background:var(--c-consumer-l); }  .row-consumer  .actor-name { color:var(--c-consumer); }
+.row-admin     .actor-label { background:var(--c-admin-l); }     .row-admin     .actor-name { color:var(--c-admin); }
+.row-store     .actor-label { background:var(--c-store-l); }     .row-store     .actor-name { color:var(--c-store); }
+.row-sms       .actor-label { background:var(--c-sms-l); }       .row-sms       .actor-name { color:var(--c-sms); }
+
+.step-cells { display:flex; flex:1; }
+.step-cell { width:var(--step-w); flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:8px 7px; border-right:1px solid var(--border); position:relative; transition:background .12s; }
+.step-cell:last-child { border-right:none; }
+.step-cell.empty { background:var(--bg); }
+.step-cell.col-sel:not(.empty) { background:var(--a-green-l); }
+.step-cell.col-sel.empty { background:rgba(61,181,74,.05); }
+
+.step-card { width:100%; border-radius:8px; padding:8px 9px; font-size:10.5px; font-weight:500; line-height:1.38; text-align:center; border:1.5px solid; cursor:pointer; transition:box-shadow .12s,transform .12s; }
+.step-card:hover { box-shadow:0 3px 10px rgba(0,0,0,.1); transform:translateY(-1px); }
+.step-card.selected { box-shadow:0 0 0 2.5px var(--a-green-dk),0 4px 14px rgba(28,92,35,.18); transform:translateY(-2px); }
+
+.step-card.retailer  { background:var(--c-retailer-l);  color:var(--c-retailer);  border-color:var(--c-retailer-m);  }
+.step-card.api       { background:var(--c-api-l);       color:var(--c-api);       border-color:var(--c-api-m);       }
+.step-card.terminal  { background:var(--c-terminal-l);  color:var(--c-terminal);  border-color:var(--c-terminal-m);  }
+.step-card.courier   { background:var(--c-courier-l);   color:var(--c-courier);   border-color:var(--c-courier-m);   }
+.step-card.consumer  { background:var(--c-consumer-l);  color:var(--c-consumer);  border-color:var(--c-consumer-m);  }
+.step-card.admin     { background:var(--c-admin-l);     color:var(--c-admin);     border-color:var(--c-admin-m);     }
+.step-card.store     { background:var(--c-store-l);     color:var(--c-store);     border-color:var(--c-store-m);     }
+.step-card.sms       { background:var(--c-sms-l);       color:var(--c-sms);       border-color:var(--c-sms-m);       }
+.step-card.happy     { background:var(--a-green-l);     color:var(--a-green-d);   border-color:var(--a-green);       }
+.step-card.fail      { background:var(--a-red-l);       color:var(--a-red-d);     border-color:var(--a-red);         }
+.step-card.warn      { background:var(--a-amber-l);     color:#92400E;            border-color:var(--a-amber);       }
+.step-card.navy      { background:var(--a-navy-l);      color:var(--a-navy);      border-color:var(--a-navy);        }
+.step-card.purple    { background:var(--a-purple-l);    color:var(--a-purple);    border-color:var(--a-purple);      }
+
+.check-badges { display:flex; flex-wrap:wrap; gap:2px; justify-content:center; margin-top:4px; }
+.check-badge  { font-size:8px; font-weight:600; font-family:'DM Mono',monospace; padding:1px 4px; border-radius:3px; background:var(--a-navy-l); color:var(--a-navy); }
+
+/* ── Detail panel ── */
+.detail-panel { width:0; flex-shrink:0; display:flex; flex-direction:column; background:var(--surface); border-left:0 solid var(--border); overflow:hidden; transition:width .22s cubic-bezier(.4,0,.2,1),border-width .22s; }
+.detail-panel.open { width:350px; border-left-width:1px; }
+.detail-top { display:flex; align-items:center; justify-content:space-between; padding:9px 15px; border-bottom:1px solid var(--border); background:var(--bg); flex-shrink:0; }
+.detail-top-label { font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.detail-close { width:22px; height:22px; border-radius:5px; border:1px solid var(--border); background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); transition:all .12s; }
+.detail-close:hover { background:var(--a-red-l); color:var(--a-red-d); border-color:var(--a-red); }
+.detail-scroll { flex:1; overflow-y:auto; padding:16px; }
+.detail-scroll::-webkit-scrollbar { width:4px; }
+.detail-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+.d-content { animation:fadeUp .18s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+.flow-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:10px; font-weight:600; border:1px solid; margin-bottom:10px; }
+.flow-badge.happy  { background:var(--a-green-l); color:var(--a-green-d); border-color:var(--a-green); }
+.flow-badge.fail   { background:var(--a-red-l);   color:var(--a-red-d);  border-color:var(--a-red);   }
+.flow-badge.warn   { background:var(--a-amber-l); color:#92400E;         border-color:var(--a-amber); }
+.flow-badge.navy   { background:var(--a-navy-l);  color:var(--a-navy);   border-color:var(--a-navy);  }
+.flow-badge.purple { background:var(--a-purple-l);color:var(--a-purple); border-color:var(--a-purple);}
+
+.d-step-num   { font-size:9.5px; color:var(--muted); font-family:'DM Mono',monospace; margin-bottom:2px; }
+.d-step-title { font-size:16px; font-weight:600; font-family:'Syne',sans-serif; letter-spacing:-.02em; line-height:1.2; margin-bottom:10px; }
+.actor-pill   { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:10.5px; font-weight:600; margin-bottom:13px; }
+
+.d-sec  { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:12px 0 6px; }
+.d-desc { font-size:12.5px; color:var(--text-2); line-height:1.65; }
+.tag-wrap { display:flex; flex-wrap:wrap; gap:4px; }
+.tag { padding:3px 8px; border-radius:5px; font-size:10.5px; font-weight:500; border:1px solid var(--border); background:var(--bg); color:var(--text-2); }
+.notif-item { display:flex; align-items:center; gap:7px; padding:7px 10px; background:var(--bg); border:1px solid var(--border); border-radius:7px; margin-bottom:4px; font-size:11.5px; color:var(--text-2); }
+.ndot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.divider { height:1px; background:var(--border); margin:12px 0; }
+.chk-row { display:flex; align-items:flex-start; gap:7px; padding:7px 9px; border-radius:7px; background:var(--a-navy-l); border:1px solid rgba(30,58,95,.15); margin-bottom:4px; }
+.chk-icon { font-size:12px; flex-shrink:0; margin-top:1px; }
+.chk-label { font-weight:600; font-size:10.5px; color:var(--a-navy); }
+.chk-desc  { font-size:11px; color:var(--text-2); margin-top:1px; line-height:1.4; }
+
+/* Screenshots */
+.ss-row  { display:flex; gap:7px; flex-wrap:wrap; margin-top:7px; }
+.ss-slot { width:82px; aspect-ratio:9/16; border:1.5px dashed var(--border); border-radius:9px; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; transition:all .13s; position:relative; overflow:hidden; flex-shrink:0; }
+.ss-slot:hover:not(.filled) { border-color:var(--a-green); background:var(--a-green-l); }
+.ss-slot.filled { border-style:solid; cursor:pointer; }
+.ss-slot .ss-icon  { font-size:16px; opacity:.25; }
+.ss-slot .ss-label { font-size:8.5px; color:var(--muted); text-align:center; line-height:1.3; padding:0 4px; }
+.ss-slot img { width:100%; height:100%; object-fit:cover; }
+.ss-slot .ss-rm { position:absolute; top:3px; right:3px; width:15px; height:15px; background:rgba(0,0,0,.55); color:#fff; border:none; border-radius:50%; font-size:8px; cursor:pointer; display:none; align-items:center; justify-content:center; }
+.ss-slot.filled:hover .ss-rm { display:flex; }
+.ss-slot input[type=file] { display:none; }
+.ss-add { width:82px; aspect-ratio:9/16; border:1.5px dashed var(--border); border-radius:9px; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; transition:all .13s; flex-shrink:0; }
+.ss-add:hover { border-color:var(--a-green); background:var(--a-green-l); }
+.ss-add .ss-plus { font-size:18px; color:var(--muted); }
+.ss-add .ss-add-lbl { font-size:8.5px; color:var(--muted); text-align:center; }
+.ss-add input[type=file] { display:none; }
+
+/* Lightbox */
+.lightbox { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999; display:none; align-items:center; justify-content:center; }
+.lightbox.open { display:flex; animation:lbIn .18s ease; }
+@keyframes lbIn { from{opacity:0} to{opacity:1} }
+.lb-inner { position:relative; max-width:380px; max-height:90vh; }
+.lb-inner img { max-width:100%; max-height:90vh; border-radius:12px; display:block; }
+.lb-close { position:absolute; top:-11px; right:-11px; width:26px; height:26px; background:#fff; border-radius:50%; border:none; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.lb-close:hover { background:var(--a-red-l); color:var(--a-red-d); }
+
+/* Footer */
+.flow-footer { border-top:1px solid var(--border); padding:9px 16px; background:var(--bg); flex-shrink:0; }
+.flow-footer-lbl  { font-size:9px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
+.flow-footer-text { font-size:11.5px; color:var(--text-2); line-height:1.5; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-mark">A</div>
+  <span class="logo-name">Airmee</span>
+  <div class="logo-div"></div>
+  <span class="logo-sub">Flow Navigator</span>
+  <div style="flex:1"></div>
+  <button id="refresh-btn" onclick="refreshData()" title="Re-fetch data from Google Sheets" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);color:#fff;border-radius:8px;padding:5px 12px;font-size:11.5px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .15s;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+    <span id="refresh-icon" style="font-size:14px;display:inline-block">↻</span> Sync Sheet
+  </button>
+</div>
+
+<div class="layer-bar">
+  <div class="layer-row">
+    <div class="layer-label">1 · Service</div>
+    <div class="chips" id="svc-chips">
+      <button class="chip svc-active" data-svc="home">🏠 Home Delivery</button>
+      <button class="chip" data-svc="locker">🔒 Locker Delivery</button>
+      <button class="chip" data-svc="point">📦 Collection Point</button>
+      <button class="chip" data-svc="flex">⚡ Flex</button>
+    </div>
+  </div>
+  <div class="layer-row">
+    <div class="layer-label">2 · Checks</div>
+    <div class="chips" id="chk-chips"></div>
+  </div>
+  <div class="layer-row">
+    <div class="layer-label">3 · Flow</div>
+    <div class="chips" id="flow-chips"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="journey-panel">
+    <div class="journey-scroll">
+      <div class="journey-inner">
+        <div class="phase-track" id="phase-track">
+          <div class="actor-spacer"></div>
+        </div>
+        <div class="actor-rows" id="actor-rows"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-top">
+      <span class="detail-top-label">🔍 Step detail</span>
+      <button class="detail-close" id="d-close">✕</button>
+    </div>
+    <div class="detail-scroll">
+      <div class="d-content" id="d-content"></div>
+    </div>
+    <div class="flow-footer">
+      <div class="flow-footer-lbl">Current flow</div>
+      <div class="flow-footer-text" id="flow-footer-text">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="lbBgClick(event)">
+  <div class="lb-inner">
+    <button class="lb-close" onclick="closeLB()">✕</button>
+    <img id="lb-img" src="" alt="">
+  </div>
+</div>
+
+<script>
+
+// ═══════════════════════════════════════════════════════
+// ▶ GOOGLE SHEETS LIVE DATA CONFIG
+// ═══════════════════════════════════════════════════════
+// 1. Publish your Sheet: File → Share → Publish to web
+//    Choose the data tab → CSV format → Copy the URL
+// 2. Paste it below
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRGxARZmYQA0FCGWuMWf_5q5MxM33oWcZedmzjofgx-XILoTN86YNhihzWozJVZRkgbRrXVKQg3bWM9/pub?gid=159113057&single=true&output=csv'; // ← PASTE YOUR PUBLISHED SHEET CSV URL HERE
+
+// ═══════════════════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = parseCSVRow(lines[0]);
+  return lines.slice(1).map(l => {
+    const vals = parseCSVRow(l);
+    const obj = {};
+    headers.forEach((h,i) => obj[h.trim()] = (vals[i]||'').trim());
+    return obj;
+  }).filter(r => r.service && r.flow && r.step_num);
+}
+
+function parseCSVRow(line) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD SVC_FLOWS FROM CSV ROWS
+// ═══════════════════════════════════════════════════════
+function buildFlowsFromCSV(rows) {
+  const out = { home:{}, locker:{}, point:{}, flex:{} };
+  const meta = {
+    home: {
+      happy:          { label:'✅ Successful',        badge:'happy',  color:'var(--a-green)',   summary:'Parcel delivered successfully on the first attempt.' },
+      'no-answer':    { label:'🚪 No Answer',          badge:'fail',   color:'var(--a-red)',     summary:'Consumer not reachable. Auto-reschedule triggered.' },
+      'no-address':   { label:'📍 Address Not Found', badge:'warn',   color:'var(--a-amber)',   summary:'Courier cannot locate address. Shipment held pending confirmation.' },
+      damaged:        { label:'📦 Damaged',           badge:'navy',   color:'var(--a-navy)',    summary:'Parcel damaged in transit or at handover. Investigation opened.' },
+      lost:           { label:'❓ Lost',              badge:'purple', color:'var(--a-purple)',  summary:'Parcel missing from route. Immediate investigation.' },
+    },
+    locker: {
+      happy:           { label:'✅ Successful Drop',   badge:'happy',  color:'var(--a-green)',  summary:'Courier inserts parcel into locker. Consumer collects via QR code or PIN.' },
+      'locker-fail':   { label:'🔒 Locker Failure',    badge:'fail',   color:'var(--a-red)',    summary:'Locker offline, full, or inaccessible. Parcel returned to terminal.' },
+      'locker-expired':{ label:'⏳ Not Collected',     badge:'warn',   color:'var(--a-amber)',  summary:'Consumer does not collect within expiry window. Returned to retailer.' },
+    },
+    point: {
+      happy:           { label:'✅ Successful Drop',   badge:'happy',  color:'var(--a-green)',  summary:'Courier drops parcel at staffed point. Consumer collects.' },
+      'point-closed':  { label:'🏪 Store Closed',      badge:'fail',   color:'var(--a-red)',    summary:'Store inaccessible or staff refuses. Drop-off postponed.' },
+      'point-expired': { label:'⏳ Not Collected',     badge:'warn',   color:'var(--a-amber)',  summary:'Consumer does not collect within expiry window. Returned to retailer.' },
+    },
+    flex: {
+      happy:             { label:'✅ Successful Conversion', badge:'happy',  color:'var(--a-green)',   summary:'Consumer converts home delivery to locker or collection point. Delivery executes to converted location.' },
+      'flex-proactive':  { label:'🔄 Proactive Switch',      badge:'navy',   color:'var(--a-navy)',    summary:'Consumer switches service before routing. Home delivery never attempted — parcel routes directly to PuP.' },
+      'flex-fallback':   { label:'🔁 Auto Fallback',         badge:'warn',   color:'var(--a-amber)',   summary:'Max home delivery attempts reached. Shipment auto-converts to nearest PuP or profile-preferred location.' },
+      'flex-ineligible': { label:'🚫 Ineligible Shipment',   badge:'fail',   color:'var(--a-red)',     summary:'Shipment has restricted checks present (ID/age/BankID). Flex UI not shown. Home delivery proceeds normally.' },
+    },
+  };
+
+  // Collect actor color mappings from card text prefix hints (c: field in old data)
+  // In CSV, actor_* columns = card text; we derive color from flow badge or actor type
+  const ACTOR_CARD_COLOR = {
+    retailer:'retailer', api:'api', terminal:'terminal', courier:'courier',
+    sms:'sms', consumer:'consumer', admin:'admin'
+  };
+
+  // Pre-index rows by service+flow+step_num for "Same" lookups
+  const rowIndex = {};
+  rows.forEach(r => {
+    const k = `${r.service}|happy|${r.step_num}`;
+    if (!rowIndex[k]) rowIndex[k] = r;
+    // also index by sid for cross-flow same lookups
+    const k2 = `${r.service}|happy|sid:${r.sid}`;
+    if (!rowIndex[k2]) rowIndex[k2] = r;
+  });
+
+  rows.forEach(r => {
+    const { service, flow } = r;
+    if (!out[service]) return;
+    if (!out[service][flow]) {
+      const m = meta[service]?.[flow] || { label: flow, badge:'happy', color:'var(--a-green)', summary:'' };
+      out[service][flow] = { label:m.label, badge:m.badge, color:m.color, summary:m.summary, steps:[] };
+    }
+
+    // Determine card color based on flow badge and actor
+    const badge = meta[service]?.[flow]?.badge || 'happy';
+    function cardColor(actorId) {
+      // Resolution steps in failure flows: use the failure color
+      if (['fail','no-answer','no-address','locker-fail','point-closed','flex-fail','flex-expired','flex-ineligible'].includes(flow) &&
+          ['api','courier','admin'].includes(actorId) && r.phase === 'Resolution') return badge;
+      if (['damaged'].includes(flow) && r.phase === 'Resolution') return 'navy';
+      if (['lost'].includes(flow) && parseInt(r.step_num) >= 5) return 'purple';
+      return actorId;
+    }
+
+    const actors = {};
+    ['retailer','api','terminal','courier','sms','consumer','admin'].forEach(a => {
+      let txt = r['actor_'+a];
+      // "Same" → look up the happy flow equivalent step and copy its text
+      if (txt && txt.trim() === 'Same') {
+        const ref = rowIndex[`${service}|happy|${r.step_num}`];
+        txt = ref ? ref['actor_'+a] : '';
+        if (txt && txt.trim() === 'Same') txt = ''; // guard double-Same
+      }
+      if (txt && txt.trim()) actors[a] = { c: cardColor(a), t: txt.trim() };
+    });
+
+    // Parse pipe-separated list fields
+    const sp = v => v ? v.split('|').map(x=>x.trim()).filter(Boolean) : [];
+
+    const step = {
+      id: parseInt(r.step_num),
+      sid: r.sid,
+      title: r.step_title,
+      phase: r.phase,
+      ...actors,
+      detail: {
+        actor: r.actor_api ? 'api' : Object.keys(actors)[0] || 'api',
+        fullTitle: r.full_title || r.step_title,
+        desc: r.description || '',
+        triggers: sp(r.triggers),
+        notifies: [],  // notifies are derived from the actor cells for simplicity
+        outputs: sp(r.outputs),
+        tags: sp(r.tags),
+        ss: r.sms_text ? [{label:'SMS/Push screenshot', app:'sms'}] : [],
+        checksRelevant: sp(r.checks_relevant),
+      }
+    };
+
+    // Auto-build notifies from non-empty actor cells
+    ['retailer','api','terminal','courier','sms','consumer','admin'].forEach(a => {
+      if (actors[a]) {
+        const colorMap = {
+          retailer:'var(--c-retailer-m)', api:'var(--c-api-m)', terminal:'var(--c-terminal-m)',
+          courier:'var(--c-courier-m)', sms:'var(--c-sms-m)', consumer:'var(--c-consumer-m)', admin:'var(--c-admin-m)'
+        };
+        step.detail.notifies.push({ color: colorMap[a]||'var(--c-api-m)', label: ACTOR_NAMES[a]+' — '+actors[a].t });
+      }
+    });
+
+    out[service][flow].steps.push(step);
+  });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════
+// DATA STATUS BANNER
+// ═══════════════════════════════════════════════════════
+function setDataBanner(state) {
+  let bar = document.getElementById('data-banner');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'data-banner';
+    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:5px 14px;font-size:10.5px;font-weight:600;z-index:9000;display:flex;align-items:center;gap:7px;transition:opacity .3s';
+    document.body.appendChild(bar);
+  }
+  const states = {
+    loading: { bg:'#1E3A5F', color:'#fff',        icon:'⏳', text:'Loading live data from Google Sheets…' },
+    live:    { bg:'#14532D', color:'#BBF7D0',      icon:'🟢', text:'Live data — loaded from Google Sheets' },
+    fallback:{ bg:'#78350F', color:'#FEF3C7',      icon:'🟡', text:'Showing built-in data — no Sheet URL configured (see SHEET_CSV_URL in source)' },
+    error:   { bg:'#7F1D1D', color:'#FEE2E2',      icon:'🔴', text:'Sheet fetch failed — showing built-in data. Check SHEET_CSV_URL or Sheet publish settings.' },
+  };
+  const s = states[state];
+  bar.style.background = s.bg;
+  bar.style.color = s.color;
+  bar.innerHTML = `<span>${s.icon}</span><span>${s.text}</span>`;
+  if (state === 'live') setTimeout(() => { bar.style.opacity='0'; setTimeout(()=>bar.remove(),500); }, 3500);
+}
+
+// ═══════════════════════════════════════════════════════
+// LOAD DATA — SHEET OR FALLBACK
+// ═══════════════════════════════════════════════════════
+async function refreshData() {
+  if (!SHEET_CSV_URL) { setDataBanner('fallback'); return; }
+  const btn = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  if (btn) btn.disabled = true;
+  if (icon) { icon.style.animation = 'spin .7s linear infinite'; }
+  await loadData();
+  if (btn) btn.disabled = false;
+  if (icon) { icon.style.animation = ''; }
+}
+
+async function loadData() {
+  if (!SHEET_CSV_URL) {
+    setDataBanner('fallback');
+    return;
+  }
+  setDataBanner('loading');
+
+  // When the HTML is opened as a local file (file://) browsers block direct
+  // cross-origin fetches. We try the direct URL first (works when hosted),
+  // then fall back through two public CORS proxies.
+  const PROXIES = [
+    url => url,                                                            // direct (works when hosted)
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,            // proxy 1
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, // proxy 2
+  ];
+
+  for (const proxy of PROXIES) {
+    try {
+      const resp = await fetch(proxy(SHEET_CSV_URL), { cache: 'no-cache' });
+      if (!resp.ok) continue;
+      const text = await resp.text();
+      const rows = parseCSV(text);
+      if (rows.length < 5) continue;
+      const liveFlows = buildFlowsFromCSV(rows);
+      Object.assign(SVC_FLOWS.home,   liveFlows.home);
+      Object.assign(SVC_FLOWS.locker, liveFlows.locker);
+      Object.assign(SVC_FLOWS.point,  liveFlows.point);
+      setDataBanner('live');
+      buildJourney();
+      return; // success — stop trying
+    } catch(e) {
+      // try next proxy
+    }
+  }
+
+  // All attempts failed
+  console.warn('All Sheet fetch attempts failed');
+  setDataBanner('error');
+}
+
+// ═══════════════════════════════════════════════════════
+// CHECKS DATA
+// ═══════════════════════════════════════════════════════
+const CHECKS = {
+  verify_id:      { label:'Verify ID',            icon:'🪪', desc:'Courier verifies the customer\'s ID before handover. Shipment-level overrides account default.', sids:['handover','collect'] },
+  strict_id:      { label:'Strict ID Check',       icon:'🪪', desc:'Along with Verify ID, the customer\'s personal number must be sent by the sender. Courier performs a strict identity match.', sids:['handover','collect'] },
+  verify_bankid:  { label:'Verify BankID',         icon:'🏦', desc:'Customer completes BankID verification and provides a 4-digit code to the courier before handover.', sids:['arrive','handover','collect'] },
+  min_age:        { label:'Minimum Age',            icon:'🔞', desc:'Courier verifies recipient meets the minimum age requirement before handover.', sids:['handover','collect'] },
+  bankid_min_age: { label:'BankID + Min Age',      icon:'🏦🔞', desc:'Customer must complete BankID and meet the sent minimum age requirement.', sids:['arrive','handover','collect'] },
+  take_signature: { label:'Take Signature',        icon:'✍️', desc:'Courier asks the customer to sign for the delivery in the courier app.', sids:['handover'] },
+  take_photo:     { label:'Take Photo',            icon:'📷', desc:'Courier takes a photo of the placed parcel outside the door.', sids:['handover','mark-ok'] },
+  allow_proxy:    { label:'Allow Proxy',           icon:'👤', desc:'Customer can register an authorized proxy. Courier verifies proxy ID matches personnummer on record.', sids:['handover'] },
+  leave_outside:  { label:'Leave Outside Door',    icon:'🚪', desc:'Customer can request on tracking page/app that parcel is left in front of the door.', sids:['handover'] },
+  leave_in_person:{ label:'Leave in Person',       icon:'🤝', desc:'Parcel must be handed directly to the recipient. Cannot be left outside.', sids:['handover'] },
+  allow_change:   { label:'Allow Customer to Change', icon:'🔄', desc:'Customer can change the "leave outside door" preference on tracking page or consumer app.', sids:['handover','notif-consumer'] },
+  locker_bankid_min_age: { label:'BankID + Min Age', icon:'🏦🔞', desc:'Locker: Customer must complete BankID and meet minimum age before a pickup code is issued.', sids:['collect'] },
+  pt_verify_id:   { label:'Verify ID',            icon:'🪪', desc:'Point: Store staff or courier verifies customer ID before releasing the parcel.', sids:['collect'] },
+  pt_verify_bankid:{ label:'Verify BankID',       icon:'🏦', desc:'Point: Customer completes BankID verification before collecting the parcel.', sids:['collect'] },
+  pt_min_age:     { label:'Minimum Age',           icon:'🔞', desc:'Point: Customer meets minimum age before collection.', sids:['collect'] },
+  pt_bankid_min_age:{ label:'BankID + Min Age',   icon:'🏦🔞', desc:'Point: Customer must complete BankID and meet minimum age requirement.', sids:['collect'] },
+};
+
+const SVC_CHECKS = {
+  home:   ['verify_id','strict_id','verify_bankid','min_age','bankid_min_age','take_signature','take_photo','allow_proxy','leave_outside','leave_in_person','allow_change'],
+  locker: ['locker_bankid_min_age'],
+  point:  ['pt_verify_id','pt_verify_bankid','pt_min_age','pt_bankid_min_age'],
+  flex:   [], // Flex eligibility: ID/age/BankID checks must NOT be present — no check chips needed
+};
+
+// ═══════════════════════════════════════════════════════
+// ACTORS CONFIG
+// ═══════════════════════════════════════════════════════
+const ALL_ACTORS = [
+  { id:'retailer', row:'row-retailer', icon:'🛒', name:'Retailer / Checkout', sub:'E-commerce backend' },
+  { id:'api',      row:'row-api',      icon:'⚙️', name:'Airmee API / System', sub:'Backend & logic'  },
+  { id:'terminal', row:'row-terminal', icon:'🏭', name:'Terminal Staff',      sub:'Depot operations'  },
+  { id:'courier',  row:'row-courier',  icon:'🚚', name:'Courier App',         sub:'Driver-facing mobile' },
+  { id:'sms',      row:'row-sms',      icon:'💬', name:'SMS / Push',          sub:'Consumer notifications' },
+  { id:'consumer', row:'row-consumer', icon:'📱', name:'Consumer / Tracking', sub:'End recipient'     },
+  { id:'admin',    row:'row-admin',    icon:'🖥️', name:'Admin Dashboard',    sub:'Ops & monitoring'  },
+];
+
+// ═══════════════════════════════════════════════════════
+// FLOW DEFINITIONS
+// ═══════════════════════════════════════════════════════
+
+// Helper: build a step def
+const s = (id,sid,title,phase,cells,detail) => ({id,sid,title,phase,...cells,detail});
+
+// ── Shared pre-delivery steps (home) ──────────────────
+const homeCheckout = [
+  s(1,'checkout','Select Time Slot','Checkout',
+    { retailer:{c:'retailer',t:'Show delivery windows & receive slot selection'},
+      api:{c:'api',t:'Return available time windows (zip-based)'},
+      consumer:{c:'consumer',t:'Choose preferred delivery time window'} },
+    { actor:'retailer', fullTitle:'Select Delivery Time Slot',
+      desc:'Consumer enters postcode on retailer checkout. Retailer calls Airmee Availability API. API returns dynamic time windows based on zip code. Consumer selects preferred slot. Note: the slot is NOT reserved at this stage.',
+      triggers:['Consumer reaches checkout','Postcode entered'],
+      notifies:[{color:'var(--c-api-m)',label:'Airmee API — availability request'},{color:'var(--c-consumer-m)',label:'Consumer — time windows displayed'}],
+      outputs:['Slot preference captured','No reservation yet'],
+      tags:['Manual','Consumer Action','API Call'], ss:[{label:'Retailer checkout — slot picker',app:'retailer'},{label:'Consumer — slot selection',app:'consumer'}] }
+  ),
+  s(2,'booking','Create Booking','Checkout',
+    { retailer:{c:'retailer',t:'Send booking request after order confirmation'},
+      api:{c:'api',t:'Validate & create shipment — generate Shipment ID'},
+      sms:{c:'sms',t:'📱 No Courier: "Beräknad leverans [DATE] kl [TIME]. Ange portkod och info i appen" — ⚠ Fires here if "Waiting for schedule" is enabled on retailer account'},
+      consumer:{c:'consumer',t:'Receive booking confirmation'} },
+    { actor:'api', fullTitle:'Create Booking & Generate Shipment ID',
+      desc:'After order is confirmed by the consumer, the retailer sends a booking request to Airmee. Airmee validates zip code, service availability, and capacity. On success, a Shipment ID is created and status set to Booked.\n\n📱 No Courier SMS: "Hej! Beräknad leverans av ditt paket från [SENDER_NAME] är [DATE] kl [TIME]. Ange portkod och annan viktig info i appen."\n\n⚠ Timing note: By default this SMS fires at route assignment (when the courier is loaded). If "Waiting for schedule" is manually enabled on the retailer account, this SMS fires here at booking instead — giving the consumer an earlier heads-up.',
+      triggers:['Consumer confirms order','Retailer sends booking request'],
+      notifies:[{color:'var(--c-sms-m)',label:'SMS: No Courier (if Waiting for schedule enabled on retailer)'},{color:'var(--c-consumer-m)',label:'Consumer — booking confirmation'},{color:'var(--c-retailer-m)',label:'Retailer — Shipment ID returned'}],
+      outputs:['Shipment ID created','Status: Booked'],
+      tags:['Automated','API','Validation'], ss:[{label:'Admin — new booking',app:'admin'},{label:'Consumer — confirmation',app:'consumer'}] }
+  ),
+];
+
+const homePre = [
+  s(3,'inbound','Terminal Inbound','Terminal',
+    { api:{c:'api',t:'Update status: Inbound scan received'},
+      terminal:{c:'terminal',t:'Scan parcel inbound & sort to route'} },
+    { actor:'terminal', fullTitle:'Terminal Inbound Scan & Sort',
+      desc:'Parcel arrives at terminal. Terminal staff performs an inbound scan. Parcel is sorted to the appropriate courier route based on delivery zone. System status updated.',
+      triggers:['Parcel arrives at terminal'],
+      notifies:[{color:'var(--c-api-m)',label:'System — status: Inbound scan'}],
+      outputs:['Parcel sorted to route','Status: At Terminal'],
+      tags:['Manual','Barcode Scan','Terminal'], ss:[{label:'Terminal — inbound scan',app:'terminal'}] }
+  ),
+  s(4,'load-route','Load & Depart','Terminal',
+    { terminal:{c:'terminal',t:'Assign route to courier & load vehicle'},
+      courier:{c:'courier',t:'Accept mission & depart terminal'},
+      sms:{c:'sms',t:'📱 Pickup confirmed: "Snart rullar ditt paket mot dig. Följ paketet i appen."'} },
+    { actor:'courier', fullTitle:'Courier Assigned, Loads Parcel & Departs',
+      desc:'Terminal staff assigns the mission to a courier. Courier accepts in the app, scans each assigned parcel, loads the vehicle, and marks the route as started.\n\n📱 Pickup confirmed SMS (Enabled): "Snart rullar ditt paket från [SENDER_NAME] mot dig. Följ paketet i appen. Vid frågor ringer vi dig från ett 010-nummer."',
+      triggers:['Route assigned to courier','Parcel sorted'],
+      notifies:[{color:'var(--c-sms-m)',label:'SMS: Pickup confirmed — parcel on its way'},{color:'var(--c-api-m)',label:'System — status: Out for Delivery'}],
+      outputs:['Route: In Progress','Parcels loaded'],
+      tags:['Manual','Courier App','Barcode Scan','SMS'], ss:[{label:'Courier App — route start',app:'courier'},{label:'Terminal — load confirmation',app:'terminal'}] }
+  ),
+];
+
+const homeArrive = [
+  s(5,'arrive','Arrive & Scan','At the Door',
+    { courier:{c:'courier',t:'Arrive at address & scan parcel at door'},
+      sms:{c:'sms',t:'📱 Dropping off: "Ditt paket är strax framme! Glömt viktig info? Gå in och fixa det direkt"'} },
+    { actor:'courier', fullTitle:'Arrive at Address & Scan Parcel',
+      desc:'Courier arrives at the delivery address and scans the parcel barcode to initiate the delivery confirmation flow. GPS arrival is logged.\n\n📱 Dropping off SMS (Enabled): "Ditt paket från [SENDER_NAME] är strax framme! Glömt att ange viktig info? Gå in och fixa det direkt" — last chance for consumer to add door code or leave preference.',
+      triggers:['GPS enters delivery zone'],
+      notifies:[{color:'var(--c-sms-m)',label:'SMS: Dropping off — parcel arriving, check your info'},{color:'var(--c-consumer-m)',label:'Consumer — courier nearby alert'}],
+      outputs:['Arrival logged','Delivery attempt started'],
+      tags:['Manual','GPS Trigger','Barcode Scan','SMS'], ss:[{label:'Courier App — arrival scan',app:'courier'},{label:'Consumer — arrival alert',app:'consumer'}],
+      checksRelevant:['verify_bankid','bankid_min_age'] }
+  ),
+];
+
+// ═══════════════════════════════════════════════════════
+// HOME FLOWS
+// ═══════════════════════════════════════════════════════
+const homeFlows = {
+  happy: {
+    label:'✅ Successful', badge:'happy', color:'var(--a-green)',
+    summary:'Consumer present, all checks pass, parcel handed over. Confirmed & closed.',
+    steps:[
+      ...homeCheckout, ...homePre, ...homeArrive,
+      s(6,'handover','Hand Over Parcel','At the Door',
+        { courier:{c:'courier',t:'Complete checks, hand over parcel & take photo'},
+          consumer:{c:'consumer',t:'Receive parcel at door'} },
+        { actor:'courier', fullTitle:'Hand Over Parcel & Complete Required Checks',
+          desc:'Consumer is present. Courier completes any active checks (BankID code, ID verification, signature, photo) before handing over the parcel.',
+          triggers:['Consumer present at door','Parcel scanned'],
+          notifies:[{color:'var(--c-api-m)',label:'System — delivery success event'}],
+          outputs:['Checks completed','Parcel delivered'],
+          tags:['Manual','Checks','Photo'], ss:[{label:'Courier App — checks screen',app:'courier'},{label:'Courier App — photo capture',app:'courier'}],
+          checksRelevant:['verify_id','strict_id','verify_bankid','min_age','bankid_min_age','take_signature','take_photo','allow_proxy','leave_outside','leave_in_person'] }
+      ),
+      s(7,'mark-ok','Mark Delivered','At the Door',
+        { api:{c:'api',t:'Confirm delivery & push confirmation notification'},
+          sms:{c:'sms',t:'📱 Completed: "Nu har vi levererat ditt paket från [SENDER_NAME]"'},
+          consumer:{c:'consumer',t:'Receive delivery confirmation + photo proof'},
+          admin:{c:'admin',t:'Order updated: Delivered'} },
+        { actor:'api', fullTitle:'Confirm Delivery & Notify All Parties',
+          desc:'System receives the success event. Delivery confirmation (with photo proof if taken) is sent to consumer. Admin dashboard updated to Delivered. KPIs logged.\n\n📱 Completed SMS (Enabled): "Nu har vi levererat ditt paket från [SENDER_NAME]. Hur var din leveransupplevelse?" — triggers a satisfaction rating prompt.',
+          triggers:['Courier marks delivered in app'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS: Completed — "Nu har vi levererat ditt paket..."'},{color:'var(--c-consumer-m)',label:'Consumer — confirmed + photo'},{color:'var(--c-admin-m)',label:'Admin — status: Delivered'}],
+          outputs:['Status: Delivered','Consumer notified','KPI updated'],
+          tags:['Automated','Push Notification','Dashboard'], ss:[{label:'Consumer — delivery confirmation',app:'consumer'},{label:'Admin — delivered order',app:'admin'}],
+          checksRelevant:['take_photo'] }
+      ),
+    ]
+  },
+
+  'no-answer': {
+    label:'🚪 No Answer', badge:'fail', color:'var(--a-red)',
+    summary:'Consumer not home. Courier waits, marks failed, system auto-reschedules.',
+    steps:[
+      ...homeCheckout, ...homePre, ...homeArrive,
+      s(6,'wait','No Answer — Wait','At the Door',
+        { courier:{c:'fail',t:'Ring, knock, wait required time — no response'} },
+        { actor:'fail', fullTitle:'No Answer — Wait Procedure',
+          desc:'Courier rings bell and knocks. Waits the required time per Airmee procedure. No contact made with the consumer.',
+          triggers:['No response after first ring'],
+          notifies:[],
+          outputs:['Waiting period completed'],
+          tags:['Manual','Procedure','Failed Attempt'], ss:[{label:'Courier App — waiting screen',app:'courier'}] }
+      ),
+      s(7,'mark-fail','Mark Failed','At the Door',
+        { courier:{c:'fail',t:'Photograph door & mark failed in app'},
+          api:{c:'fail',t:'Receive failed event — trigger reschedule'},
+          sms:{c:'sms',t:'📱 Failed to deliver: "Tyvärr kunde vi inte leverera. Dubbelkolla info & se nästa datum: [TRACKING_URL]"'},
+          consumer:{c:'consumer',t:'Receive failed delivery notice'},
+          admin:{c:'fail',t:'Failure logged — attempt count +1'} },
+        { actor:'fail', fullTitle:'Mark Delivery Failed & Notify',
+          desc:'Courier photographs the door and marks the delivery as failed with a deviation reason. System receives the failure event, notifies the consumer, and increments attempt count.\n\n📱 Failed to deliver SMS (Enabled): "Hej, tyvärr kunde vi inte leverera ditt paket. Dubbelkolla gärna att vi har rätt info. Vi gör ett nytt försök imorgon."',
+          triggers:['Max wait time exceeded','No contact made'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS: Failed to deliver — check info & next date'},{color:'var(--c-consumer-m)',label:'Consumer — delivery failed notice'},{color:'var(--c-admin-m)',label:'Admin — failed attempt logged'}],
+          outputs:['Photo uploaded','Status: Failed','Attempt count +1'],
+          tags:['Manual','Photo Required','Deviation Reason'], ss:[{label:'Courier App — failure report',app:'courier'},{label:'Consumer — failure notice',app:'consumer'}] }
+      ),
+      s(8,'reschedule','Auto-Reschedule','Resolution',
+        { api:{c:'fail',t:'Auto-schedule redelivery (if max attempts not reached)'},
+          sms:{c:'sms',t:'📱 Failed to pick up: "Tyvärr kommer ditt paket bli försenat. Vi återkommer med nytt leveransdatum."'},
+          consumer:{c:'consumer',t:'Receive new delivery date'},
+          admin:{c:'fail',t:'Monitor vs sender max-attempt limit'} },
+        { actor:'api', fullTitle:'Auto-Reschedule Redelivery Attempt',
+          desc:'System automatically schedules a new attempt for the next available delivery day (if the sender-configured max attempts has not been reached). Consumer notified. Admin monitors attempt count. If max attempts reached, shipment is flagged for return.\n\n📱 Failed to pick up SMS (Enabled): "Hej, tyvärr kommer ditt paket från [SENDER_NAME] bli försenat. Vi återkommer snarast med ett nytt leveransdatum. Tack för ditt tålamod."',
+          triggers:['Failed delivery event received'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS: Failed to pick up — new date coming soon'},{color:'var(--c-consumer-m)',label:'Consumer — new delivery date'},{color:'var(--c-admin-m)',label:'Admin — attempt flagged'}],
+          outputs:['New date scheduled','Status: Rescheduled OR Return Triggered'],
+          tags:['Automated','Sender Rule','Max Attempts'], ss:[{label:'Consumer — reschedule notice',app:'consumer'},{label:'Admin — attempt view',app:'admin'}] }
+      ),
+    ]
+  },
+
+  'no-address': {
+    label:'📍 Address Not Found', badge:'warn', color:'var(--a-amber)',
+    summary:'Courier cannot locate address. Consumer contacted to verify. Re-delivery once corrected.',
+    steps:[
+      ...homeCheckout, ...homePre, ...homeArrive,
+      s(6,'flag-addr','Flag Address Issue','At the Door',
+        { courier:{c:'warn',t:'Cannot locate address — flag issue in app'} },
+        { actor:'warn', fullTitle:'Flag Address Issue in Courier App',
+          desc:'Courier arrives in the area but cannot find the address. Common causes: wrong number, missing apartment info, non-existent address. Courier selects the issue type and adds a note.',
+          triggers:['GPS at approximate area','Address not found on arrival'],
+          notifies:[{color:'var(--c-api-m)',label:'System — address issue event'}],
+          outputs:['Address flag raised','Deviation logged'],
+          tags:['Manual','Courier App','Address Problem'], ss:[{label:'Courier App — address issue screen',app:'courier'}] }
+      ),
+      s(7,'mark-undeliv','Mark Undeliverable','At the Door',
+        { courier:{c:'fail',t:'Mark undeliverable & upload photo'},
+          api:{c:'warn',t:'Contact consumer to verify/correct address'},
+          consumer:{c:'warn',t:'Receive address verification request'},
+          admin:{c:'warn',t:'Address issue flagged in dashboard'} },
+        { actor:'api', fullTitle:'Mark Undeliverable & Contact Consumer',
+          desc:'Delivery marked as undeliverable. System contacts consumer to correct the address. Admin is flagged. No automatic reschedule until address is confirmed.',
+          triggers:['Address flag confirmed by courier'],
+          notifies:[{color:'var(--c-consumer-m)',label:'Consumer — please verify your address'},{color:'var(--c-admin-m)',label:'Admin — address issue flagged'}],
+          outputs:['Status: Undeliverable','Consumer contacted'],
+          tags:['Consumer Action Required'], ss:[{label:'Consumer — address verification request',app:'consumer'}] }
+      ),
+      s(8,'reroute','Re-route','Resolution',
+        { api:{c:'api',t:'Re-route with corrected address'},
+          consumer:{c:'warn',t:'Confirm corrected address'},
+          admin:{c:'warn',t:'Monitor re-delivery'} },
+        { actor:'api', fullTitle:'Re-route with Corrected Address',
+          desc:'Once consumer confirms corrected address, order is re-routed for the next available delivery day.',
+          triggers:['Consumer confirms address'],
+          notifies:[{color:'var(--c-admin-m)',label:'Admin — re-delivery scheduled'}],
+          outputs:['Order re-routed','New date set'],
+          tags:['Automated'], ss:[{label:'Admin — re-route view',app:'admin'},{label:'Consumer — re-route confirmation',app:'consumer'}] }
+      ),
+    ]
+  },
+
+  damaged: {
+    label:'📦 Damaged', badge:'navy', color:'var(--a-navy)',
+    summary:'Damage identified by courier (before handover) or consumer (after). Report filed, admin investigates.',
+    steps:[
+      ...homeCheckout, ...homePre, ...homeArrive,
+      s(6,'identify','Damage Identified','At the Door',
+        { courier:{c:'navy',t:'Identify damage before handover OR deliver and report'},
+          consumer:{c:'navy',t:'Report damage after receipt via app'} },
+        { actor:'navy', fullTitle:'Damage Identified — Courier or Consumer',
+          desc:'Two paths: (A) Courier spots damage at depot or at the door before handover and files a damage report. (B) Parcel is delivered normally and the consumer reports damage after receipt via the consumer app.',
+          triggers:['Damage visible on parcel','Consumer reports post-delivery'],
+          notifies:[],
+          outputs:['Damage report initiated'],
+          tags:['Manual','Both Paths'], ss:[{label:'Courier App — damage report',app:'courier'},{label:'Consumer App — report damage',app:'consumer'}] }
+      ),
+      s(7,'file-report','File Damage Report','Resolution',
+        { api:{c:'navy',t:'File report & alert admin + sender'},
+          consumer:{c:'consumer',t:'Receive acknowledgement'},
+          admin:{c:'navy',t:'Open investigation with sender'} },
+        { actor:'api', fullTitle:'File Damage Report & Open Investigation',
+          desc:'Damage report is filed regardless of whether courier or consumer identified it. Admin is alerted and an investigation with the sender is opened immediately.',
+          triggers:['Damage report submitted'],
+          notifies:[{color:'var(--c-admin-m)',label:'Admin — damage claim opened'},{color:'var(--c-consumer-m)',label:'Consumer — acknowledgement'}],
+          outputs:['Report filed','Investigation opened','Sender contacted'],
+          tags:['Investigation','Admin Action'], ss:[{label:'Admin — damage claim',app:'admin'},{label:'Consumer — claim submitted',app:'consumer'}] }
+      ),
+      s(8,'damage-resolve','Resolution','Resolution',
+        { api:{c:'navy',t:'Update status: Under Review'},
+          consumer:{c:'consumer',t:'Receive resolution update'},
+          admin:{c:'navy',t:'Close investigation — replacement or refund'} },
+        { actor:'admin', fullTitle:'Investigation & Resolution',
+          desc:'Admin leads investigation with sender. Outcome determined by sender policy: replacement parcel or refund. Consumer kept informed throughout.',
+          triggers:['Investigation complete'],
+          notifies:[{color:'var(--c-consumer-m)',label:'Consumer — resolution outcome'}],
+          outputs:['Case resolved','Status updated'],
+          tags:['Sender Policy','Admin'], ss:[{label:'Admin — investigation closed',app:'admin'}] }
+      ),
+    ]
+  },
+
+  lost: {
+    label:'❓ Lost', badge:'purple', color:'var(--a-purple)',
+    summary:'Parcel missing from route. Immediate investigation. Admin leads with courier team and sender.',
+    steps:[
+      ...homeCheckout, ...homePre,
+      s(5,'missing','Parcel Missing','Investigation',
+        { api:{c:'purple',t:'Detect missing parcel from route scan'},
+          courier:{c:'purple',t:'Cannot locate parcel on vehicle'},
+          sms:{c:'sms',t:'📱 Failed to pick up: "Tyvärr kommer ditt paket bli försenat. Vi återkommer med nytt leveransdatum."'},
+          admin:{c:'purple',t:'Investigation opened immediately'} },
+        { actor:'api', fullTitle:'Parcel Missing — Investigation Triggered',
+          desc:'System detects the parcel was not scanned at depot or cannot be located on the route. An investigation is triggered immediately. Admin alerted. Consumer notified of delay.\n\n📱 Failed to pick up SMS (Enabled): Consumer receives delay notice immediately.',
+          triggers:['Missing scan at depot','Courier cannot locate parcel'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS: Failed to pick up — parcel delayed'},{color:'var(--c-admin-m)',label:'Admin — parcel missing, investigation opened'},{color:'var(--c-consumer-m)',label:'Consumer — delivery delayed'}],
+          outputs:['Parcel flagged: Lost','Investigation opened'],
+          tags:['System Alert','Urgent'], ss:[{label:'Admin — missing parcel alert',app:'admin'}] }
+      ),
+      s(6,'investigate','Investigate','Investigation',
+        { api:{c:'purple',t:'Status: Lost — Investigating'},
+          consumer:{c:'purple',t:'Notified — under investigation'},
+          admin:{c:'purple',t:'Review scan logs, CCTV, courier team'} },
+        { actor:'admin', fullTitle:'Full Investigation — Scan Logs, CCTV, Courier',
+          desc:'Admin leads investigation: courier team, warehouse ops, and sender all involved. CCTV and scan logs are reviewed. Consumer is kept informed with updates.',
+          triggers:['Parcel confirmed missing'],
+          notifies:[{color:'var(--c-consumer-m)',label:'Consumer — investigation update'}],
+          outputs:['Investigation case open','Sender notified'],
+          tags:['Admin Led','Cross-team','Urgent'], ss:[{label:'Admin — investigation dashboard',app:'admin'}] }
+      ),
+      s(7,'lost-resolve','Resolution','Investigation',
+        { api:{c:'purple',t:'Notify sender & update status'},
+          consumer:{c:'consumer',t:'Receive resolution'},
+          admin:{c:'admin',t:'Close case & update records'} },
+        { actor:'admin', fullTitle:'Close Investigation & Resolution',
+          desc:'Investigation concluded. Sender contacted for resolution. Consumer informed. Case closed and logged for carrier performance metrics.',
+          triggers:['Investigation complete'],
+          notifies:[{color:'var(--c-consumer-m)',label:'Consumer — resolution'}],
+          outputs:['Case closed','Metrics updated'],
+          tags:['Sender Policy','Admin'], ss:[{label:'Admin — case closed',app:'admin'},{label:'Consumer — resolution',app:'consumer'}] }
+      ),
+    ]
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+// LOCKER FLOWS
+// ═══════════════════════════════════════════════════════
+const lockerCheckout = [
+  s(1,'l-select','Select Locker','Checkout',
+    { retailer:{c:'retailer',t:'Consumer selects locker from available locations'},
+      api:{c:'api',t:'Return locker locations via location API'},
+      consumer:{c:'consumer',t:'Choose preferred locker location'} },
+    { actor:'retailer', fullTitle:'Select Locker Location',
+      desc:'Consumer selects a locker location at checkout. Retailer calls Airmee location API to retrieve available lockers. No time slot selected — locker delivery has no time windows.',
+      triggers:['Consumer reaches checkout','Locker delivery selected'],
+      notifies:[{color:'var(--c-api-m)',label:'Airmee API — location list request'}],
+      outputs:['Locker ID selected'],
+      tags:['Manual','Consumer Action','API Call'], ss:[{label:'Retailer checkout — locker map',app:'retailer'},{label:'Consumer — locker selection',app:'consumer'}] }
+  ),
+  s(2,'l-booking','Create Booking','Checkout',
+    { retailer:{c:'retailer',t:'Send booking request with locker ID'},
+      api:{c:'api',t:'Create shipment with locker ID attached'},
+      consumer:{c:'consumer',t:'Receive booking confirmation'} },
+    { actor:'api', fullTitle:'Create Booking — Attach Locker ID',
+      desc:'Retailer sends booking request with selected locker ID. Airmee validates locker availability and creates shipment. Locker ID attached to shipment record.',
+      triggers:['Consumer confirms order'],
+      notifies:[{color:'var(--c-consumer-m)',label:'Consumer — booking confirmation'},{color:'var(--c-retailer-m)',label:'Retailer — Shipment ID'}],
+      outputs:['Shipment ID created','Locker ID attached','Status: Booked'],
+      tags:['Automated','API','Validation'], ss:[{label:'Admin — new locker booking',app:'admin'}] }
+  ),
+];
+
+const lockerPre = [
+  s(3,'l-inbound','Terminal Inbound','Terminal',
+    { api:{c:'api',t:'Status update: Inbound scan'},
+      terminal:{c:'terminal',t:'Scan parcel & sort to locker route'} },
+    { actor:'terminal', fullTitle:'Terminal Inbound & Sort to Locker Route',
+      desc:'Parcel arrives at terminal. Inbound scan performed. Sorted to the locker delivery route.',
+      triggers:['Parcel arrives at terminal'],
+      notifies:[{color:'var(--c-api-m)',label:'System — inbound scan'}],
+      outputs:['Sorted to locker route'],
+      tags:['Manual','Terminal','Barcode Scan'], ss:[{label:'Terminal — inbound scan',app:'terminal'}] }
+  ),
+  s(4,'l-load','Load & Depart','Terminal',
+    { terminal:{c:'terminal',t:'Assign mission & load courier'},
+      courier:{c:'courier',t:'Accept mission & depart for locker location'} },
+    { actor:'courier', fullTitle:'Courier Loads Parcel & Departs for Locker',
+      desc:'Terminal assigns locker mission. Courier accepts, scans parcels, loads vehicle, and departs.',
+      triggers:['Mission assigned'],
+      notifies:[{color:'var(--c-api-m)',label:'System — Out for Delivery'}],
+      outputs:['Status: Out for Delivery'],
+      tags:['Manual','Courier App'], ss:[{label:'Courier App — mission screen',app:'courier'}] }
+  ),
+];
+
+const lockerFlows = {
+  happy: {
+    label:'✅ Successful Drop', badge:'happy', color:'var(--a-green)',
+    summary:'Courier inserts parcel into locker. Consumer collects via QR code or PIN.',
+    steps:[
+      ...lockerCheckout, ...lockerPre,
+      s(5,'l-arrive','Arrive at Locker','Delivery',
+        { courier:{c:'courier',t:'Arrive at locker location & scan parcel'} },
+        { actor:'courier', fullTitle:'Arrive at Locker Location',
+          desc:'Courier arrives at the locker location. Scans the parcel to initiate the locker insertion flow.',
+          triggers:['GPS at locker location'],
+          notifies:[],
+          outputs:['Arrival logged'],
+          tags:['Manual','GPS','Barcode Scan'], ss:[{label:'Courier App — locker arrival',app:'courier'}] }
+      ),
+      s(6,'l-insert','Insert & Confirm','Delivery',
+        { courier:{c:'courier',t:'Open locker compartment & insert parcel'},
+          api:{c:'api',t:'Locker confirms deposit — generate QR / PIN'} },
+        { actor:'courier', fullTitle:'Insert Parcel & Locker Confirms',
+          desc:'Courier scans parcel, locker door opens, parcel inserted, locker confirms deposit. System generates QR code and/or PIN for consumer pickup.',
+          triggers:['Parcel scanned at locker'],
+          notifies:[{color:'var(--c-api-m)',label:'Locker system — deposit confirmed'},{color:'var(--c-consumer-m)',label:'Consumer — pickup notification + QR/PIN'}],
+          outputs:['Status: Delivered to Locker','QR/PIN generated'],
+          tags:['Automated','Locker System'], ss:[{label:'Courier App — locker insert',app:'courier'}] }
+      ),
+      s(7,'l-notify','Notify Consumer','Delivery',
+        { api:{c:'api',t:'Send pickup notification with QR code'},
+          sms:{c:'sms',t:'📱 Pickup confirmed: "Snart rullar ditt paket mot dig. Följ paketet i appen."'},
+          consumer:{c:'consumer',t:'Receive pickup notification & QR/PIN'} },
+        { actor:'api', fullTitle:'Send Pickup Notification to Consumer',
+          desc:'Consumer receives a push notification with QR code and/or PIN for locker access. Consumer goes to locker at their convenience.\n\n📱 Pickup confirmed SMS: Consumer notified with tracking and pickup instructions.',
+          triggers:['Locker deposit confirmed'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS: Pickup confirmed — QR/PIN + instructions'},{color:'var(--c-consumer-m)',label:'Consumer — QR code + pickup instructions'}],
+          outputs:['Consumer notified','Locker clock starts'],
+          tags:['Automated','Push Notification'], ss:[{label:'Consumer — pickup notification',app:'consumer'},{label:'Consumer — QR code screen',app:'consumer'}] }
+      ),
+      s(8,'collect','Consumer Collects','Pickup',
+        { consumer:{c:'consumer',t:'Scan QR / enter PIN — locker opens'},
+          api:{c:'happy',t:'Confirm pickup & close shipment'},
+          admin:{c:'admin',t:'Order marked: Picked Up'} },
+        { actor:'consumer', fullTitle:'Consumer Collects Parcel from Locker',
+          desc:'Consumer arrives at locker, scans QR code or enters PIN. Locker door opens. Pickup is confirmed by the system. Shipment closed.',
+          triggers:['Consumer scans QR or enters PIN'],
+          notifies:[{color:'var(--c-api-m)',label:'System — pickup confirmed'},{color:'var(--c-admin-m)',label:'Admin — status: Picked Up'}],
+          outputs:['Status: Picked Up','Shipment closed'],
+          tags:['Consumer Action','Locker System'], ss:[{label:'Consumer — QR scan at locker',app:'consumer'},{label:'Admin — picked up',app:'admin'}],
+          checksRelevant:['locker_bankid_min_age'] }
+      ),
+    ]
+  },
+  'locker-fail': {
+    label:'🔒 Locker Failure', badge:'fail', color:'var(--a-red)',
+    summary:'Locker offline, full, or inaccessible. Parcel returned to terminal or reassigned.',
+    steps:[
+      ...lockerCheckout, ...lockerPre,
+      s(5,'l-arrive-f','Arrive at Locker','Delivery',
+        { courier:{c:'courier',t:'Arrive at locker location'} },
+        { actor:'courier', fullTitle:'Arrive at Locker', desc:'Courier arrives at locker location.', triggers:['GPS at locker'], notifies:[], outputs:['Arrival logged'], tags:['Manual'], ss:[] }
+      ),
+      s(6,'l-fail','Locker Failure','Delivery',
+        { courier:{c:'fail',t:'Cannot insert — locker full, offline, or inaccessible'},
+          api:{c:'fail',t:'Receive failure event from locker / courier'} },
+        { actor:'fail', fullTitle:'Locker Insertion Failed',
+          desc:'Courier cannot insert the parcel. Common causes: locker is full, technical offline failure, or courier cannot physically access the location. Failure reported in courier app.',
+          triggers:['Locker full','Locker offline','No access'],
+          notifies:[{color:'var(--c-api-m)',label:'System — locker failure event'},{color:'var(--c-admin-m)',label:'Admin — locker failure flagged'}],
+          outputs:['Insertion failed','Failure logged'],
+          tags:['Manual','Failure','Locker'], ss:[{label:'Courier App — locker failure',app:'courier'}] }
+      ),
+      s(7,'l-return-terminal','Return to Terminal','Resolution',
+        { courier:{c:'fail',t:'Return parcel to terminal'},
+          terminal:{c:'terminal',t:'Re-scan and reassign to next available drop'},
+          api:{c:'fail',t:'Status: Locker Failed — Reassigning'},
+          admin:{c:'fail',t:'Monitor reassignment or escalate'} },
+        { actor:'api', fullTitle:'Return to Terminal & Reassign',
+          desc:'Parcel returned to terminal. Re-scanned and reassigned to next available locker drop or alternative resolution. Consumer notified of delay.',
+          triggers:['Locker failure event'],
+          notifies:[{color:'var(--c-consumer-m)',label:'Consumer — delivery delay notice'},{color:'var(--c-admin-m)',label:'Admin — reassignment'}],
+          outputs:['Parcel at terminal','Status: Reassigning'],
+          tags:['Automated','Resolution'], ss:[{label:'Admin — reassignment view',app:'admin'}] }
+      ),
+    ]
+  },
+  'locker-expired': {
+    label:'⏳ Not Collected', badge:'warn', color:'var(--a-amber)',
+    summary:'Consumer does not collect within expiry window. Reminder sent, then returned to retailer.',
+    steps:[
+      ...lockerCheckout, ...lockerPre,
+      s(5,'l-arrive2','Arrive at Locker','Delivery',
+        { courier:{c:'courier',t:'Arrive & insert parcel'} },
+        { actor:'courier', fullTitle:'Arrive & Insert Parcel', desc:'Courier inserts parcel, locker confirms.', triggers:['GPS at locker'], notifies:[], outputs:['Delivered to locker'], tags:['Manual'], ss:[] }
+      ),
+      s(6,'l-delivered2','Delivered to Locker','Delivery',
+        { api:{c:'happy',t:'Locker confirms deposit — QR/PIN sent'},
+          consumer:{c:'consumer',t:'Receive pickup notification'} },
+        { actor:'api', fullTitle:'Parcel Delivered to Locker', desc:'Consumer notified with QR/PIN.', triggers:['Locker deposit confirmed'], notifies:[{color:'var(--c-consumer-m)',label:'Consumer — pickup QR/PIN'}], outputs:['Status: At Locker'], tags:['Automated'], ss:[] }
+      ),
+      s(7,'l-reminder','Pickup Reminder','Pickup',
+        { api:{c:'warn',t:'Send pickup reminder before expiry'},
+          sms:{c:'sms',t:'📱 Reminder push — "Ditt paket hämtas snart ut, annars returneras det"'},
+          consumer:{c:'warn',t:'Receive reminder — parcel expiring soon'} },
+        { actor:'api', fullTitle:'Send Pickup Reminder',
+          desc:'System sends a reminder notification as the pickup expiry window approaches. Consumer given another opportunity to collect.',
+          triggers:['Pickup window nearing expiry (TBD: exact days)'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS/Push: reminder — collect soon or returned'},{color:'var(--c-consumer-m)',label:'Consumer — pick up soon or parcel returned'}],
+          outputs:['Reminder sent'],
+          tags:['Automated','Expiry Warning'], ss:[{label:'Consumer — reminder notice',app:'consumer'}] }
+      ),
+      s(8,'l-expire','Expired — Return','Resolution',
+        { api:{c:'warn',t:'Mark expired — trigger return to retailer'},
+          terminal:{c:'terminal',t:'Collect parcel from locker & return scan'},
+          admin:{c:'warn',t:'Expired shipment logged — return initiated'} },
+        { actor:'api', fullTitle:'Parcel Expired — Return to Retailer',
+          desc:'Consumer did not collect within the expiry window. Parcel is retrieved from the locker, returned to terminal, and processed for return to the retailer.',
+          triggers:['Expiry window passed (TBD)'],
+          notifies:[{color:'var(--c-admin-m)',label:'Admin — expired, return initiated'}],
+          outputs:['Status: Expired','Return to retailer started'],
+          tags:['Automated','Return'], ss:[{label:'Admin — expired shipments',app:'admin'}] }
+      ),
+    ]
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+// COLLECTION POINT FLOWS
+// ═══════════════════════════════════════════════════════
+const pointCheckout = [
+  s(1,'p-select','Select Point','Checkout',
+    { retailer:{c:'retailer',t:'Consumer selects collection point location'},
+      api:{c:'api',t:'Return collection point list via location API'},
+      consumer:{c:'consumer',t:'Choose preferred collection point'} },
+    { actor:'retailer', fullTitle:'Select Collection Point',
+      desc:'Consumer selects a staffed collection point (e.g. ICA store) at checkout. No time slot selected.',
+      triggers:['Consumer reaches checkout'],
+      notifies:[{color:'var(--c-api-m)',label:'Airmee API — location request'}],
+      outputs:['Collection point ID selected'],
+      tags:['Manual','Consumer Action','API Call'], ss:[{label:'Retailer checkout — point selection',app:'retailer'}] }
+  ),
+  s(2,'p-booking','Create Booking','Checkout',
+    { retailer:{c:'retailer',t:'Send booking request with collection point ID'},
+      api:{c:'api',t:'Create shipment — attach collection point ID'},
+      consumer:{c:'consumer',t:'Receive booking confirmation'} },
+    { actor:'api', fullTitle:'Create Booking — Attach Collection Point ID',
+      desc:'Retailer sends booking. Airmee attaches collection point ID to shipment.',
+      triggers:['Consumer confirms order'],
+      notifies:[{color:'var(--c-consumer-m)',label:'Consumer — booking confirmation'},{color:'var(--c-retailer-m)',label:'Retailer — Shipment ID'}],
+      outputs:['Shipment ID created','Status: Booked'],
+      tags:['Automated','API'], ss:[{label:'Admin — new point booking',app:'admin'}] }
+  ),
+];
+
+const pointPre = [
+  s(3,'p-inbound','Terminal Inbound','Terminal',
+    { api:{c:'api',t:'Status: Inbound scan'},
+      terminal:{c:'terminal',t:'Scan & sort to collection point route'} },
+    { actor:'terminal', fullTitle:'Terminal Inbound & Sort', desc:'Inbound scan, sorted to collection point route.', triggers:['Parcel at terminal'], notifies:[{color:'var(--c-api-m)',label:'System — inbound scan'}], outputs:['Sorted to point route'], tags:['Manual','Terminal'], ss:[] }
+  ),
+  s(4,'p-load','Load & Depart','Terminal',
+    { terminal:{c:'terminal',t:'Assign mission & load courier'},
+      courier:{c:'courier',t:'Accept mission — depart for collection point'} },
+    { actor:'courier', fullTitle:'Courier Loads & Departs', desc:'Courier accepts mission, loads, departs.', triggers:['Mission assigned'], notifies:[{color:'var(--c-api-m)',label:'System — Out for Delivery'}], outputs:['Status: Out for Delivery'], tags:['Manual'], ss:[] }
+  ),
+];
+
+const pointFlows = {
+  happy: {
+    label:'✅ Successful Drop', badge:'happy', color:'var(--a-green)',
+    summary:'Courier drops parcel at staffed point. Double scan confirmed. Consumer collects.',
+    steps:[
+      ...pointCheckout, ...pointPre,
+      s(5,'p-arrive','Arrive at Store','Delivery',
+        { courier:{c:'courier',t:'Arrive at collection point & scan parcel for drop-off'} },
+        { actor:'courier', fullTitle:'Arrive at Collection Point & Scan',
+          desc:'Courier arrives at the staffed collection point. Scans the parcel to initiate the drop-off flow.',
+          triggers:['GPS at collection point'],
+          notifies:[],
+          outputs:['Arrival logged','Drop-off initiated'],
+          tags:['Manual','GPS','Barcode Scan'], ss:[{label:'Courier App — store arrival',app:'courier'}] }
+      ),
+      s(6,'p-drop','Double Scan Drop-off','Delivery',
+        { courier:{c:'courier',t:'Courier scans for drop-off'},
+          api:{c:'happy',t:'Both scans confirmed — status: Delivered to Point'} },
+        { actor:'courier', fullTitle:'Double Scan Drop-off Confirmed',
+          desc:'Courier scans parcel for drop-off. Drop-off confirmed by system (double-scan flow). Status updated to Delivered to Collection Point.',
+          triggers:['Courier scans parcel at store'],
+          notifies:[{color:'var(--c-api-m)',label:'System — delivered to collection point'},{color:'var(--c-consumer-m)',label:'Consumer — pickup notification'}],
+          outputs:['Status: Delivered to Collection Point','Consumer notified'],
+          tags:['Manual','Double Scan','Barcode Scan'], ss:[{label:'Courier App — drop-off scan',app:'courier'}] }
+      ),
+      s(7,'p-notify','Notify Consumer','Delivery',
+        { api:{c:'api',t:'Send pickup notification'},
+          sms:{c:'sms',t:'📱 Pickup confirmed: "Snart rullar ditt paket mot dig. Följ paketet i appen."'},
+          consumer:{c:'consumer',t:'Receive pickup notification'} },
+        { actor:'api', fullTitle:'Send Pickup Notification',
+          desc:'Consumer notified that parcel is ready for collection. Consumer visits store and provides QR code, tracking ID, or shipping ID.\n\n📱 Pickup confirmed SMS sent when parcel is confirmed at collection point.',
+          triggers:['Drop-off confirmed'],
+          notifies:[{color:'var(--c-sms-m)',label:'SMS: Pickup confirmed — parcel ready at store'},{color:'var(--c-consumer-m)',label:'Consumer — your parcel is ready'}],
+          outputs:['Consumer notified'],
+          tags:['Automated','Push Notification'], ss:[{label:'Consumer — pickup notification',app:'consumer'}] }
+      ),
+      s(8,'collect','Consumer Collects','Pickup',
+        { consumer:{c:'consumer',t:'Arrive at store with QR / tracking ID'},
+          api:{c:'happy',t:'Pickup confirmed — shipment closed'},
+          admin:{c:'admin',t:'Order marked: Picked Up'} },
+        { actor:'consumer', fullTitle:'Consumer Collects at Collection Point',
+          desc:'Consumer arrives at store. Presents QR code, tracking ID, or shipping ID. Store staff retrieves parcel from shelf, counter, or internal locker. ID check performed if required. Pickup confirmed.',
+          triggers:['Consumer arrives at store','QR or ID presented'],
+          notifies:[{color:'var(--c-api-m)',label:'System — pickup confirmed'},{color:'var(--c-admin-m)',label:'Admin — picked up'}],
+          outputs:['Status: Picked Up','Shipment closed'],
+          tags:['Consumer Action','Store Staff','ID Check'], ss:[{label:'Consumer — QR code screen',app:'consumer'},{label:'Admin — picked up',app:'admin'}],
+          checksRelevant:['pt_verify_id','pt_verify_bankid','pt_min_age','pt_bankid_min_age'] }
+      ),
+    ]
+  },
+  'point-closed': {
+    label:'🏪 Store Closed', badge:'fail', color:'var(--a-red)',
+    summary:'Courier arrives but store is closed or staff refuses parcel. Drop-off postponed.',
+    steps:[
+      ...pointCheckout, ...pointPre,
+      s(5,'p-arrive-f','Arrive at Store','Delivery',
+        { courier:{c:'courier',t:'Arrive at collection point'} },
+        { actor:'courier', fullTitle:'Arrive at Collection Point', desc:'Courier arrives at store.', triggers:['GPS at point'], notifies:[], outputs:['Arrival logged'], tags:['Manual'], ss:[] }
+      ),
+      s(6,'p-closed','Store Closed / Rejection','Delivery',
+        { courier:{c:'fail',t:'Store closed or staff refuses parcel'},
+          api:{c:'fail',t:'Receive deviation — postpone drop-off'} },
+        { actor:'fail', fullTitle:'Store Closed or Staff Refusal',
+          desc:'Store is closed at time of arrival, or staff refuses the parcel (e.g. no space, missing scan confirmation). Courier logs deviation reason in app.',
+          triggers:['Store inaccessible','Staff refusal'],
+          notifies:[{color:'var(--c-api-m)',label:'System — deviation: store unavailable'},{color:'var(--c-admin-m)',label:'Admin — store failure flagged'}],
+          outputs:['Deviation logged','Drop-off postponed'],
+          tags:['Manual','Deviation Reason'], ss:[{label:'Courier App — deviation report',app:'courier'}] }
+      ),
+      s(7,'p-reassign','Reassign Drop','Resolution',
+        { api:{c:'fail',t:'Reschedule drop-off to next available time'},
+          courier:{c:'fail',t:'Return parcel or await next attempt'},
+          admin:{c:'fail',t:'Monitor & escalate if repeated failure'} },
+        { actor:'api', fullTitle:'Reschedule Drop-off Attempt',
+          desc:'System reschedules the drop-off to the next available time or reassigns to another collection point. Admin monitors for repeated failures.',
+          triggers:['Deviation event received'],
+          notifies:[{color:'var(--c-admin-m)',label:'Admin — reassignment queued'}],
+          outputs:['New drop-off scheduled'],
+          tags:['Automated','Store Resolution'], ss:[{label:'Admin — reassignment',app:'admin'}] }
+      ),
+    ]
+  },
+  'point-expired': {
+    label:'⏳ Not Collected', badge:'warn', color:'var(--a-amber)',
+    summary:'Consumer does not collect within expiry window. Reminder sent, then returned to retailer.',
+    steps:[
+      ...pointCheckout, ...pointPre,
+      s(5,'p-arrive3','Arrive & Drop','Delivery',
+        { courier:{c:'courier',t:'Drop parcel at collection point — double scan'} },
+        { actor:'courier', fullTitle:'Drop Parcel at Collection Point', desc:'Parcel dropped off, double scan complete.', triggers:['GPS at point'], notifies:[], outputs:['Delivered to collection point'], tags:['Manual'], ss:[] }
+      ),
+      s(6,'p-delivered3','Delivered to Point','Delivery',
+        { api:{c:'happy',t:'Drop-off confirmed — consumer notified'},
+          consumer:{c:'consumer',t:'Receive pickup notification'} },
+        { actor:'api', fullTitle:'Consumer Notified of Parcel Arrival', desc:'Consumer notified.', triggers:['Drop-off confirmed'], notifies:[{color:'var(--c-consumer-m)',label:'Consumer — pickup notification'}], outputs:['Status: At Collection Point'], tags:['Automated'], ss:[] }
+      ),
+      s(7,'p-reminder','Pickup Reminder','Pickup',
+        { api:{c:'warn',t:'Send expiry reminder'},
+          sms:{c:'sms',t:'📱 Reminder push — "Ditt paket hämtas snart ut, annars returneras det"'},
+          consumer:{c:'warn',t:'Receive reminder — collect soon'} },
+        { actor:'api', fullTitle:'Send Pickup Expiry Reminder', desc:'Reminder sent as expiry approaches.', triggers:['Expiry approaching (TBD: days)'], notifies:[{color:'var(--c-sms-m)',label:'SMS/Push: collect soon or returned'},{color:'var(--c-consumer-m)',label:'Consumer — collect or parcel returned'}], outputs:['Reminder sent'], tags:['Automated'], ss:[{label:'Consumer — expiry reminder',app:'consumer'}] }
+      ),
+      s(8,'p-expire','Expired — Return','Resolution',
+        { api:{c:'warn',t:'Mark expired — return to retailer'},
+          terminal:{c:'terminal',t:'Collect from store & return scan'},
+          admin:{c:'warn',t:'Log expiry — return initiated'} },
+        { actor:'api', fullTitle:'Parcel Expired — Return to Retailer', desc:'Not collected in time. Parcel returned to terminal, then to retailer.', triggers:['Expiry window passed'], notifies:[{color:'var(--c-admin-m)',label:'Admin — expired, return'}], outputs:['Status: Expired','Return initiated'], tags:['Automated','Return'], ss:[{label:'Admin — expiry log',app:'admin'}] }
+      ),
+    ]
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+// FLEX FLOWS (hardcoded fallback — also loadable from Sheet)
+// ═══════════════════════════════════════════════════════
+const flexFlows = {
+  'happy': {
+    label:'✅ Successful Conversion', badge:'happy', color:'var(--a-green)', summary:'Consumer converts home delivery to locker or collection point. Delivery executes to converted location.',
+    steps:[
+      s(1,'flex-booking','Home Delivery Booked','Checkout',
+        {retailer:{c:'retailer',t:'Books standard home delivery shipment via API'}, api:{c:'api',t:'Creates home delivery shipment — evaluates Flex eligibility at booking'}, consumer:{c:'consumer',t:'Selects home delivery at checkout'}, admin:{c:'admin',t:'Flex zone + service config read at evaluation'}},
+        {actor:'retailer',fullTitle:'Home Delivery Booked — Flex Eligibility Evaluated',
+          desc:'Consumer completes checkout with home delivery. Retailer sends booking request. Airmee creates the shipment and immediately evaluates Flex eligibility:\n\n✅ Eligible if: Flex is enabled for the zone AND none of the following checks are on the shipment: ID check, Strict ID check, Min age check, BankID check, BankID age check.\n\n⚙️ Flex is enabled at the zone level in the Admin Dashboard per retailer account. Individual services (locker, collection point) can also be enabled/disabled per account.',
+          triggers:['Consumer confirms order','Retailer sends booking request'],notifies:[{color:'var(--c-retailer-m)',label:'Books standard home delivery shipment via API'},{color:'var(--c-api-m)',label:'Creates home delivery shipment — evaluates Flex eligibility at booking'},{color:'var(--c-consumer-m)',label:'Selects home delivery at checkout'},{color:'var(--c-admin-m)',label:'Flex zone + service config read at evaluation'}],
+          outputs:['Shipment ID created','Status: Booked','Flex eligibility flag set'],tags:['Automated','API','Flex Eligibility'],ss:[]}
+      ),
+      s(2,'flex-presented','Flex Option Presented','Tracking / App',
+        {api:{c:'api',t:'Confirms eligibility at render time — pre-selects nearest eligible PuP or profile-preferred PuP'}, consumer:{c:'consumer',t:'Opens tracking page or consumer app — sees Flex conversion option'}},
+        {actor:'api',fullTitle:'Flex Option Presented to Consumer',
+          desc:'Consumer opens the tracking page or consumer app. System re-confirms eligibility and presents the Flex option if:\n- Flex is enabled for the zone\n- Shipment passes eligibility rules\n- Consumer has Flex enabled in their profile (or it is on by default)\n\nA locker or service point is pre-selected automatically based on:\n1. Consumer\'s profile-preferred PuP (if set), OR\n2. Nearest eligible PuP based on the shipment zip code centroid\n\nConsumer may optionally enter a different zip code to search for other locations.',
+          triggers:['Consumer opens tracking page or app','Shipment is eligible','Flex is zone-enabled'],notifies:[{color:'var(--c-api-m)',label:'Confirms eligibility at render time — pre-selects nearest eligible PuP or profile-preferred PuP'},{color:'var(--c-consumer-m)',label:'Opens tracking page or consumer app — sees Flex conversion option'}],
+          outputs:['Flex UI visible','PuP pre-selected','Eligible services shown'],tags:['Consumer Facing','Tracking Page','Consumer App','Pre-selection'],ss:[]}
+      ),
+      s(3,'flex-select','Select PuP','Tracking / App',
+        {api:{c:'api',t:'Returns up to 15 closest eligible PuPs based on zip code centroid | Filters by eligibility rules and enabled services'}, consumer:{c:'consumer',t:'Browses list or map view — optionally searches by zip — selects locker or collection point'}},
+        {actor:'api',fullTitle:'Consumer Selects Pickup Location',
+          desc:'Consumer selects a PuP from the pre-populated list or map view. Both views show:\n- Name\n- Address\n- Opening hours\n\nList view: distance-sorted, max 15 results.\nMap view: interactive map with selectable markers.\n\nConsumer may enter any zip code (including one different from the shipment address) to search for nearby PuPs. System retrieves the 15 closest eligible locations based on the zip code centroid.\n\nIneligible PuPs (e.g. lockers when ID check is present) are never displayed.',
+          triggers:['Consumer opens Flex UI','Zip code entered (optional)'],notifies:[{color:'var(--c-api-m)',label:'Returns up to 15 closest eligible PuPs based on zip code centroid | Filters by eligibility rules and enabled services'},{color:'var(--c-consumer-m)',label:'Browses list or map view — optionally searches by zip — selects locker or collection point'}],
+          outputs:['PuP selected','Confirmation dialogue triggered'],tags:['Consumer Action','List View','Map View','Zip Search','Eligibility Filter'],ss:[]}
+      ),
+      s(4,'flex-confirm','Confirm Conversion','Tracking / App',
+        {api:{c:'api',t:'Saves service conversion — updates shipment to new service and PuP location'}, sms:{c:'sms',t:'📱 Flex conversion confirmed: \'Din leverans har ändrats till [LOCATION_NAME]. Du får ett nytt SMS när paketet är klart att hämtas.\''}, consumer:{c:'consumer',t:'Reviews selection in confirmation dialogue — confirms'}, admin:{c:'admin',t:'Conversion event logged — shipment record updated'}},
+        {actor:'api',fullTitle:'Service Conversion Confirmed & Saved',
+          desc:'Consumer is shown a confirmation dialogue displaying the selected PuP name, address, and opening hours before committing. On confirmation:\n\n- Shipment service is updated from home delivery to the selected locker or collection point\n- Conversion is reflected immediately in tracking and downstream delivery execution\n- Conversion is valid until routing or the next delivery attempt\n- Consumer receives SMS/Push notification confirming the change\n- Conversion event is logged for Data & Analytics',
+          triggers:['Consumer confirms selection in dialogue'],notifies:[{color:'var(--c-api-m)',label:'Saves service conversion — updates shipment to new service and PuP location'},{color:'var(--c-sms-m)',label:'📱 Flex conversion confirmed: \'Din leverans har ändrats till [LOCATION_NAME]. Du får ett nytt SMS när paketet är klart att hämtas.\''},{color:'var(--c-consumer-m)',label:'Reviews selection in confirmation dialogue — confirms'},{color:'var(--c-admin-m)',label:'Conversion event logged — shipment record updated'}],
+          outputs:['Service conversion saved','Shipment updated','Conversion event logged','Consumer notified'],tags:['Automated','Conversion Event','SMS','Push','Data Logging'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(5,'flex-timing','Conversion Timing Branch','System',
+        {api:{c:'api',t:'Routing engine reads updated service at next route assignment'}, admin:{c:'admin',t:'Conversion timing logged — no manual action needed'}},
+        {actor:'api',fullTitle:'Conversion Timing — Three Valid Windows',
+          desc:'The conversion can be made at three points in the shipment lifecycle:\n\n⏱ A — Before routing\nWide window. Routing engine picks up the conversion and routes directly to the PuP. No home delivery attempt is ever made.\n\n⏱ B — Before the delivery attempt (same-day, after routing)\nNarrower window. Shipment is already routed but courier has not yet departed or scanned the parcel at the door. Conversion re-routes the parcel.\n\n⏱ C — After a failed delivery attempt\nConsumer sees Flex as a recovery option after a failed attempt. One or more attempts already logged. Consumer initiates conversion manually.\n\nAll three paths converge at Terminal Inbound below.',
+          triggers:['Conversion saved','Route not yet assigned (A)','Route assigned, courier not yet at door (B)','Failed attempt logged (C)'],notifies:[{color:'var(--c-api-m)',label:'Routing engine reads updated service at next route assignment'},{color:'var(--c-admin-m)',label:'Conversion timing logged — no manual action needed'}],
+          outputs:['Routing engine reads updated service at next assignment'],tags:['System Logic','Branching','Timing'],ss:[]}
+      ),
+      s(6,'flex-terminal','Terminal — Sort to PuP Route','Terminal',
+        {api:{c:'api',t:'Shipment routed to locker or collection point route'}, terminal:{c:'terminal',t:'Scan parcel inbound — sort to converted service route'}},
+        {actor:'api',fullTitle:'Terminal Inbound — Sorted to Converted Service Route',
+          desc:'Parcel arrives at (or returns to) terminal. Inbound scan performed. System routes parcel to the locker or collection point route based on the confirmed conversion. If this is after a failed home delivery attempt, parcel is re-sorted.',
+          triggers:['Parcel at terminal','Conversion confirmed','Next available route'],notifies:[{color:'var(--c-api-m)',label:'Shipment routed to locker or collection point route'},{color:'var(--c-terminal-m)',label:'Scan parcel inbound — sort to converted service route'}],
+          outputs:['Sorted to locker or collection point route'],tags:['Manual','Terminal','Barcode Scan'],ss:[]}
+      ),
+      s(7,'flex-deliver','Deliver to PuP','Delivery',
+        {api:{c:'api',t:'Delivery confirmed — pickup notification triggered'}, courier:{c:'courier',t:'Deliver parcel to selected locker (insert + confirm) or collection point (double scan)'}, sms:{c:'sms',t:'📱 Pickup confirmed: \'Ditt paket finns nu på [LOCATION_NAME]. Hämta ut det med din QR-kod eller personnummer.\''}, consumer:{c:'consumer',t:'Receive pickup notification with QR code or pickup instructions'}},
+        {actor:'api',fullTitle:'Parcel Delivered to Selected PuP',
+          desc:'Courier delivers to the converted locker or collection point following the standard service flow:\n\n🔒 Locker: Courier scans parcel → locker door opens → parcel inserted → locker confirms deposit → QR/PIN generated for consumer.\n\n📦 Collection Point: Courier scans for double-scan drop-off → staff confirms → consumer notified.\n\nConsumer receives SMS/Push with pickup instructions.',
+          triggers:['Courier arrives at converted PuP','Parcel inserted or double-scanned'],notifies:[{color:'var(--c-api-m)',label:'Delivery confirmed — pickup notification triggered'},{color:'var(--c-courier-m)',label:'Deliver parcel to selected locker (insert + confirm) or collection point (double scan)'},{color:'var(--c-sms-m)',label:'📱 Pickup confirmed: \'Ditt paket finns nu på [LOCATION_NAME]. Hämta ut det med din QR-kod eller personnummer.\''},{color:'var(--c-consumer-m)',label:'Receive pickup notification with QR code or pickup instructions'}],
+          outputs:['Status: Delivered to PuP','QR/PIN generated (locker)','Consumer notified'],tags:['Automated','Push Notification','SMS','Locker','Collection Point'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(8,'flex-collect','Consumer Collects','Pickup',
+        {api:{c:'api',t:'Pickup confirmed — shipment closed'}, consumer:{c:'consumer',t:'Arrives at PuP — presents QR code, PIN, or ID — collects parcel'}, admin:{c:'admin',t:'Order marked: Picked Up | Conversion journey complete'}},
+        {actor:'api',fullTitle:'Consumer Collects at Converted PuP',
+          desc:'Consumer collects the parcel from the selected locker or collection point:\n\n🔒 Locker: Consumer scans QR code or enters PIN. Locker door opens. Pickup confirmed automatically.\n\n📦 Collection Point: Consumer presents QR code, tracking ID, or shipping ID to store staff. Staff retrieves parcel. ID check if required by retailer.\n\nShipment closed. Conversion journey logged end-to-end.',
+          triggers:['Consumer scans QR or presents ID at PuP'],notifies:[{color:'var(--c-api-m)',label:'Pickup confirmed — shipment closed'},{color:'var(--c-consumer-m)',label:'Arrives at PuP — presents QR code, PIN, or ID — collects parcel'},{color:'var(--c-admin-m)',label:'Order marked: Picked Up | Conversion journey complete'}],
+          outputs:['Status: Picked Up','Shipment closed','Journey complete'],tags:['Consumer Action','Locker','Collection Point'],ss:[]}
+      ),
+    ]
+  },
+  'flex-proactive': {
+    label:'🔄 Proactive Switch', badge:'navy', color:'var(--a-navy)', summary:'Consumer switches service before routing. Home delivery never attempted — parcel routes directly to PuP.',
+    steps:[
+      s(1,'flex-booking','Home Delivery Booked','Checkout',
+        {},
+        {actor:'api',fullTitle:'Home Delivery Booked',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[]}
+      ),
+      s(2,'flex-presented','Flex Option Presented','Tracking / App',
+        {api:{c:'api',t:'Flex UI presented — full conversion window open, no routing lock'}, consumer:{c:'consumer',t:'Opens tracking page or app early — shipment not yet routed'}},
+        {actor:'api',fullTitle:'Flex Presented — Full Conversion Window Open',
+          desc:'Consumer checks tracking shortly after ordering, before the shipment has been assigned to a route. This is the widest conversion window — any eligible PuP can be selected and the home delivery attempt will never be made.\n\nPre-selection logic applies: profile-preferred PuP or nearest eligible PuP.',
+          triggers:['Consumer opens tracking','Before route assignment'],notifies:[{color:'var(--c-api-m)',label:'Flex UI presented — full conversion window open, no routing lock'},{color:'var(--c-consumer-m)',label:'Opens tracking page or app early — shipment not yet routed'}],
+          outputs:['Flex UI visible','Wide conversion window'],tags:['Consumer Facing','Pre-Routing','Widest Window'],ss:[]}
+      ),
+      s(3,'flex-select','Select PuP','Tracking / App',
+        {},
+        {actor:'api',fullTitle:'Consumer Selects PuP',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[]}
+      ),
+      s(4,'flex-confirm','Confirm Conversion','Tracking / App',
+        {},
+        {actor:'api',fullTitle:'Conversion Confirmed — Pre-Routing',
+          desc:'Consumer confirms selection before routing. Conversion saved. Routing engine will pick up the updated service at the next route assignment — routing goes directly to PuP, skipping home delivery entirely.\n\nConsumer receives SMS/Push confirming the change.',
+          triggers:['Consumer confirms selection','Routing not yet assigned'],notifies:[],
+          outputs:['Conversion saved','Routing will go directly to PuP'],tags:['Automated','Pre-Routing','No Home Attempt'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(5,'flex-terminal-p','Terminal — Routed Directly to PuP','Terminal',
+        {api:{c:'api',t:'Route assignment reads updated service — PuP route assigned directly'}, terminal:{c:'terminal',t:'Scan parcel inbound — sorted to locker or collection point route (no home route)'}},
+        {actor:'api',fullTitle:'Terminal — Sorted Directly to PuP Route',
+          desc:'Parcel arrives at terminal. Because the conversion was confirmed before routing, the routing engine assigns the PuP route directly. No home delivery route is ever created for this shipment.',
+          triggers:['Parcel at terminal','Route assignment reads Flex conversion'],notifies:[{color:'var(--c-api-m)',label:'Route assignment reads updated service — PuP route assigned directly'},{color:'var(--c-terminal-m)',label:'Scan parcel inbound — sorted to locker or collection point route (no home route)'}],
+          outputs:['Sorted to PuP route','Home delivery route never created'],tags:['Manual','Terminal','Direct to PuP'],ss:[]}
+      ),
+      s(6,'flex-deliver-p','Deliver to PuP','Delivery',
+        {},
+        {actor:'api',fullTitle:'Parcel Delivered to PuP',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(7,'flex-collect-p','Consumer Collects','Pickup',
+        {},
+        {actor:'api',fullTitle:'Consumer Collects',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[]}
+      ),
+    ]
+  },
+  'flex-fallback': {
+    label:'🔁 Auto Fallback', badge:'warn', color:'var(--a-amber)', summary:'Max home delivery attempts reached. Shipment auto-converts to nearest PuP or profile-preferred location.',
+    steps:[
+      s(1,'flex-booking','Home Delivery Booked','Checkout',
+        {},
+        {actor:'api',fullTitle:'Home Delivery Booked',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[]}
+      ),
+      s(2,'flex-presented','Flex Option Available','Tracking / App',
+        {api:{c:'api',t:'Flex UI available — consumer has not yet acted on it'}, consumer:{c:'consumer',t:'Flex option visible on tracking page during active delivery attempts'}},
+        {actor:'api',fullTitle:'Flex Option Available — Consumer Has Not Yet Converted',
+          desc:'Consumer is aware of the Flex option but has not used it. Home delivery attempts proceed normally. Flex remains available until max attempts are reached, at which point the system takes over automatically.',
+          triggers:['Shipment eligible','Consumer has not converted'],notifies:[{color:'var(--c-api-m)',label:'Flex UI available — consumer has not yet acted on it'},{color:'var(--c-consumer-m)',label:'Flex option visible on tracking page during active delivery attempts'}],
+          outputs:['Flex UI visible and available'],tags:['Consumer Facing','Passive','Fallback Pending'],ss:[]}
+      ),
+      s(3,'flex-attempts','Home Delivery Attempts','At the Door',
+        {api:{c:'api',t:'Failed attempt logged — attempt count incremented'}, courier:{c:'courier',t:'Attempts home delivery — no answer or failed'}, sms:{c:'sms',t:'📱 Failed to deliver: \'Hej, tyvärr kunde vi inte leverera ditt paket. Vi försöker igen imorgon.\''}, consumer:{c:'consumer',t:'Receive failed delivery notice'}, admin:{c:'admin',t:'Attempt count monitored vs sender max-attempt limit'}},
+        {actor:'api',fullTitle:'Home Delivery Attempt(s) — Failed',
+          desc:'Courier attempts home delivery. One or more attempts fail (no answer, no access, etc.). Each failure is logged and attempt count incremented.\n\nAfter each failed attempt, Flex is still available for manual consumer conversion. Once the maximum number of attempts configured on the sender account is reached, automatic Flex fallback triggers.',
+          triggers:['Delivery attempt fails','Attempt count < max'],notifies:[{color:'var(--c-api-m)',label:'Failed attempt logged — attempt count incremented'},{color:'var(--c-courier-m)',label:'Attempts home delivery — no answer or failed'},{color:'var(--c-sms-m)',label:'📱 Failed to deliver: \'Hej, tyvärr kunde vi inte leverera ditt paket. Vi försöker igen imorgon.\''},{color:'var(--c-consumer-m)',label:'Receive failed delivery notice'},{color:'var(--c-admin-m)',label:'Attempt count monitored vs sender max-attempt limit'}],
+          outputs:['Attempt logged','Attempt count incremented','Flex still available'],tags:['Manual','Failed Attempt','Attempt Count'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(4,'flex-auto','Auto Flex Fallback Triggered','System',
+        {api:{c:'api',t:'Max attempts reached — auto-conversion triggered | Resolves PuP from consumer profile or nearest eligible location'}, sms:{c:'sms',t:'📱 Auto Fallback: \'Din leverans har automatiskt konverterats till [LOCATION_NAME] efter misslyckade leveransförsök.\''}, consumer:{c:'consumer',t:'Receives conversion notification — no action required'}, admin:{c:'admin',t:'Auto-conversion event logged | Fallback source recorded (profile or nearest)'}},
+        {actor:'api',fullTitle:'Automatic Flex Conversion — Max Attempts Reached',
+          desc:'Maximum home delivery attempts reached. System automatically converts the shipment:\n\n1️⃣ Profile-preferred PuP — if the consumer has a preferred fallback location configured in their consumer profile, the shipment converts to that location.\n\n2️⃣ Nearest eligible PuP — if no profile preference is set, system selects the nearest eligible locker or collection point based on the shipment zip code.\n\nNo consumer action is required. Consumer is notified via SMS/Push.\n\n⚠️ Out of scope (later stage): Retailer account-level auto fallback configuration.',
+          triggers:['Max delivery attempts reached','Flex enabled for zone','Consumer profile fallback or nearest PuP available'],notifies:[{color:'var(--c-api-m)',label:'Max attempts reached — auto-conversion triggered | Resolves PuP from consumer profile or nearest eligible location'},{color:'var(--c-sms-m)',label:'📱 Auto Fallback: \'Din leverans har automatiskt konverterats till [LOCATION_NAME] efter misslyckade leveransförsök.\''},{color:'var(--c-consumer-m)',label:'Receives conversion notification — no action required'},{color:'var(--c-admin-m)',label:'Auto-conversion event logged | Fallback source recorded (profile or nearest)'}],
+          outputs:['Shipment auto-converted to PuP','Conversion event logged','Consumer notified'],tags:['Automated','Profile Fallback','Nearest PuP','Max Attempts','Conversion Event'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(5,'flex-terminal-f','Terminal — Re-sort to PuP Route','Terminal',
+        {api:{c:'api',t:'Shipment re-routed to PuP route after auto-conversion'}, terminal:{c:'terminal',t:'Re-scan parcel — sort to locker or collection point route'}},
+        {actor:'api',fullTitle:'Terminal Re-sort to PuP Route',
+          desc:'Parcel returns to terminal following failed home delivery attempt(s). Re-scanned and sorted to the locker or collection point route based on the auto-conversion.',
+          triggers:['Auto-conversion confirmed','Next available route'],notifies:[{color:'var(--c-api-m)',label:'Shipment re-routed to PuP route after auto-conversion'},{color:'var(--c-terminal-m)',label:'Re-scan parcel — sort to locker or collection point route'}],
+          outputs:['Re-sorted to PuP route'],tags:['Manual','Terminal','Re-sort','Post Fallback'],ss:[]}
+      ),
+      s(6,'flex-deliver-f','Deliver to PuP','Delivery',
+        {},
+        {actor:'api',fullTitle:'Parcel Delivered to PuP',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
+      ),
+      s(7,'flex-collect-f','Consumer Collects','Pickup',
+        {},
+        {actor:'api',fullTitle:'Consumer Collects',
+          desc:'Same as Successful Conversion flow.',
+          triggers:[],notifies:[],
+          outputs:[],tags:[],ss:[]}
+      ),
+    ]
+  },
+  'flex-ineligible': {
+    label:'🚫 Ineligible Shipment', badge:'fail', color:'var(--a-red)', summary:'Shipment has restricted checks present (ID/age/BankID). Flex UI not shown. Home delivery proceeds normally.',
+    steps:[
+      s(1,'flex-booking-i','Home Delivery Booked','Checkout',
+        {retailer:{c:'retailer',t:'Books home delivery shipment — one or more restricted checks present on shipment'}, api:{c:'api',t:'Creates shipment — evaluates Flex eligibility — marks INELIGIBLE'}, consumer:{c:'consumer',t:'Selects home delivery at checkout'}, admin:{c:'admin',t:'Shipment flagged ineligible for Flex at booking'}},
+        {actor:'retailer',fullTitle:'Home Delivery Booked — Flex Ineligible',
+          desc:'Consumer completes checkout. Retailer sends booking with one or more checks that disqualify Flex for locker conversion:\n\n🚫 Disqualifying checks (any one of these blocks locker Flex):\n- ID check\n- Strict ID check\n- Minimum age check\n- BankID check\n- BankID age check\n\nFlex eligibility is evaluated at booking and flagged on the shipment. The Flex UI will not be shown to the consumer.\n\n⚠️ Note: Eligibility rules currently apply to locker conversion only. Collection point eligibility rules are TBD.',
+          triggers:['Consumer confirms order','Booking request received'],notifies:[{color:'var(--c-retailer-m)',label:'Books home delivery shipment — one or more restricted checks present on shipment'},{color:'var(--c-api-m)',label:'Creates shipment — evaluates Flex eligibility — marks INELIGIBLE'},{color:'var(--c-consumer-m)',label:'Selects home delivery at checkout'},{color:'var(--c-admin-m)',label:'Shipment flagged ineligible for Flex at booking'}],
+          outputs:['Shipment created','Status: Booked','Flex flag: INELIGIBLE'],tags:['Automated','API','Ineligible','Checks Present'],ss:[]}
+      ),
+      s(2,'flex-no-ui','Flex Option Not Shown','Tracking / App',
+        {api:{c:'fail',t:'Eligibility check fails at render — Flex UI suppressed'}, consumer:{c:'consumer',t:'Opens tracking page or app — no Flex option visible'}},
+        {actor:'api',fullTitle:'Flex UI Suppressed — Shipment Ineligible',
+          desc:'Consumer opens the tracking page or consumer app. System checks Flex eligibility at render time. Because one or more disqualifying checks are present on the shipment, the Flex option is not displayed.\n\nConsumer sees the standard tracking view without the Flex conversion option. Home delivery proceeds normally.',
+          triggers:['Consumer opens tracking','Eligibility check returns INELIGIBLE'],notifies:[{color:'var(--c-api-m)',label:'Eligibility check fails at render — Flex UI suppressed'},{color:'var(--c-consumer-m)',label:'Opens tracking page or app — no Flex option visible'}],
+          outputs:['Flex UI not rendered','Standard tracking shown'],tags:['Consumer Facing','Ineligible','Checks Enforcement'],ss:[]}
+      ),
+      s(3,'flex-home-proceeds','Home Delivery Proceeds Normally','Delivery',
+        {api:{c:'api',t:'Standard home delivery flow'}, courier:{c:'courier',t:'Deliver parcel to home address — perform required checks at door'}, consumer:{c:'consumer',t:'Receive delivery as normal home delivery'}},
+        {actor:'api',fullTitle:'Standard Home Delivery — No Flex Conversion',
+          desc:'Home delivery proceeds through the standard flow. All configured checks (ID, BankID, age, etc.) are performed at the door as normal. Flex is not available for this shipment.\n\nIf delivery fails, standard reschedule logic applies — NOT auto Flex fallback, since the shipment is ineligible.',
+          triggers:['Parcel sorted to home delivery route','No Flex conversion'],notifies:[{color:'var(--c-api-m)',label:'Standard home delivery flow'},{color:'var(--c-courier-m)',label:'Deliver parcel to home address — perform required checks at door'},{color:'var(--c-consumer-m)',label:'Receive delivery as normal home delivery'}],
+          outputs:['Standard delivery executed','Checks performed at door'],tags:['Manual','Standard Flow','No Flex'],ss:[]}
+      ),
+    ]
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+// SERVICE FLOW REGISTRY
+// ═══════════════════════════════════════════════════════
+const SVC_FLOWS = {
+  home:   homeFlows,
+  locker: lockerFlows,
+  point:  pointFlows,
+  flex:   {},  // populated from Sheet or CSV
+};
+// Register hardcoded Flex fallback (overridden by Sheet data if SHEET_CSV_URL is set)
+Object.assign(SVC_FLOWS.flex, flexFlows);
+
+const FLOW_CHIPS = {
+  home: [
+    { id:'happy',       label:'✅ Successful',          cls:'f-happy'  },
+    { id:'no-answer',   label:'🚪 No Answer',            cls:'f-fail'   },
+    { id:'no-address',  label:'📍 Address Not Found',   cls:'f-amber'  },
+    { id:'damaged',     label:'📦 Damaged',             cls:'f-navy'   },
+    { id:'lost',        label:'❓ Lost',                cls:'f-purple' },
+  ],
+  locker: [
+    { id:'happy',           label:'✅ Successful Drop',    cls:'f-happy'  },
+    { id:'locker-fail',     label:'🔒 Locker Failure',     cls:'f-fail'   },
+    { id:'locker-expired',  label:'⏳ Not Collected',      cls:'f-amber'  },
+  ],
+  point: [
+    { id:'happy',           label:'✅ Successful Drop',    cls:'f-happy'  },
+    { id:'point-closed',    label:'🏪 Store Closed',       cls:'f-fail'   },
+    { id:'point-expired',   label:'⏳ Not Collected',      cls:'f-amber'  },
+  ],
+  flex: [
+    { id:'happy',             label:'✅ Successful Conversion', cls:'f-happy'  },
+    { id:'flex-proactive',    label:'🔄 Proactive Switch',      cls:'f-navy'   },
+    { id:'flex-fallback',     label:'🔁 Auto Fallback',         cls:'f-amber'  },
+    { id:'flex-ineligible',   label:'🚫 Ineligible Shipment',   cls:'f-fail'   },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let curSvc    = 'home';
+let curFlow   = 'happy';
+let activeChk = new Set();
+let selKey    = null;
+const shots   = {};
+
+// ═══════════════════════════════════════════════════════
+// ACTOR STYLE HELPERS
+// ═══════════════════════════════════════════════════════
+const ACTOR_STYLES = {
+  retailer:{ bg:'var(--c-retailer-l)', color:'var(--c-retailer)' },
+  api:     { bg:'var(--c-api-l)',      color:'var(--c-api)'      },
+  terminal:{ bg:'var(--c-terminal-l)', color:'var(--c-terminal)' },
+  courier: { bg:'var(--c-courier-l)',  color:'var(--c-courier)'  },
+  consumer:{ bg:'var(--c-consumer-l)', color:'var(--c-consumer)' },
+  admin:   { bg:'var(--c-admin-l)',    color:'var(--c-admin)'    },
+  store:   { bg:'var(--c-store-l)',    color:'var(--c-store)'    },
+  sms:     { bg:'var(--c-sms-l)',      color:'var(--c-sms)'      },
+  happy:   { bg:'var(--a-green-l)',    color:'var(--a-green-d)'  },
+  fail:    { bg:'var(--a-red-l)',      color:'var(--a-red-d)'    },
+  warn:    { bg:'var(--a-amber-l)',    color:'#92400E'           },
+  navy:    { bg:'var(--a-navy-l)',     color:'var(--a-navy)'     },
+  purple:  { bg:'var(--a-purple-l)',   color:'var(--a-purple)'   },
+};
+const ACTOR_NAMES = {
+  retailer:'🛒 Retailer', api:'⚙️ Airmee System', terminal:'🏭 Terminal', courier:'🚚 Courier',
+  consumer:'📱 Consumer', admin:'🖥️ Admin', store:'🏪 Store Staff', sms:'💬 SMS / Push',
+  fail:'⚠ Failure Step', warn:'⚠ Warning', navy:'🔵 Investigation', purple:'🟣 Critical', happy:'✅ Step',
+};
+
+// ═══════════════════════════════════════════════════════
+// RENDER FLOW CHIPS
+// ═══════════════════════════════════════════════════════
+function renderFlowChips() {
+  const chips = FLOW_CHIPS[curSvc] || [];
+  const container = document.getElementById('flow-chips');
+  if (!chips.length) {
+    container.innerHTML = '<span style="font-size:11px;color:var(--muted);font-style:italic">No flows defined yet — add rows to your Sheet with service=flex</span>';
+    return;
+  }
+  container.innerHTML = chips.map(c =>
+    `<button class="chip ${c.cls} ${curFlow === c.id ? 'on':''}" data-fid="${c.id}">${c.label}</button>`
+  ).join('');
+  container.querySelectorAll('[data-fid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      curFlow = btn.dataset.fid;
+      closeDetail();
+      renderFlowChips();
+      buildJourney();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER CHECK CHIPS
+// ═══════════════════════════════════════════════════════
+function renderCheckChips() {
+  const avail = SVC_CHECKS[curSvc] || [];
+  activeChk.forEach(c => { if (!avail.includes(c)) activeChk.delete(c); });
+  const container = document.getElementById('chk-chips');
+  if (!avail.length) {
+    container.innerHTML = '<span style="font-size:11px;color:var(--muted);font-style:italic">No configurable checks for this service</span>';
+    return;
+  }
+  container.innerHTML = avail.map(k =>
+    `<button class="chip chk ${activeChk.has(k)?'on':''}" data-ck="${k}"><span class="dot"></span>${CHECKS[k].icon} ${CHECKS[k].label}</button>`
+  ).join('');
+  container.querySelectorAll('[data-ck]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.ck;
+      if (activeChk.has(k)) { activeChk.delete(k); btn.classList.remove('on'); }
+      else { activeChk.add(k); btn.classList.add('on'); }
+      buildJourney();
+      refreshDetailChecks();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD JOURNEY MAP
+// ═══════════════════════════════════════════════════════
+function buildJourney() {
+  const fd = SVC_FLOWS[curSvc]?.[curFlow];
+  if (!fd) {
+    // Show empty state for services with no flows yet (e.g. Flex before Sheet data)
+    document.getElementById('phase-track').innerHTML = '<div class="actor-spacer"></div>';
+    document.getElementById('actor-rows').innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px">
+      <div style="font-size:28px;margin-bottom:10px">⚡</div>
+      <div style="font-weight:600;margin-bottom:6px">No flow data yet for this service</div>
+      <div style="font-size:11.5px">Add rows with <code style="background:var(--bg);padding:2px 6px;border-radius:4px">service=flex</code> to your Google Sheet, then click ↻ Sync Sheet</div>
+    </div>`;
+    document.getElementById('flow-footer-text').textContent = '—';
+    return;
+  }
+  const steps = fd.steps;
+
+  // Phase track
+  const track = document.getElementById('phase-track');
+  [...track.querySelectorAll('.phase-group')].forEach(e => e.remove());
+  const groups = [];
+  steps.forEach(s => {
+    const last = groups[groups.length-1];
+    if (last && last.phase === s.phase) last.steps.push(s);
+    else groups.push({ phase:s.phase, steps:[s] });
+  });
+  groups.forEach(g => {
+    const pg = document.createElement('div');
+    pg.className = 'phase-group';
+    const lbl = document.createElement('div');
+    lbl.className = 'phase-label-cell';
+    lbl.textContent = g.phase;
+    const hdrs = document.createElement('div');
+    hdrs.className = 'phase-step-headers';
+    g.steps.forEach(st => {
+      const h = document.createElement('div');
+      h.className = 'step-hdr' + (selKey && selKey.startsWith(st.id+'-') ? ' col-sel' : '');
+      h.dataset.sid = st.id;
+      h.innerHTML = `<div class="step-num">${String(st.id).padStart(2,'0')}</div><div class="step-hdr-title">${st.title}</div>`;
+      h.addEventListener('click', () => {
+        // Click header = select first non-null actor card for this step
+        const first = ALL_ACTORS.map(a => ({a, cell:st[a.id]})).find(x => x.cell);
+        if (first) handleCellClick(st.id, first.a.id, st);
+      });
+      hdrs.appendChild(h);
+    });
+    pg.appendChild(lbl);
+    pg.appendChild(hdrs);
+    track.appendChild(pg);
+  });
+
+  // Actor rows
+  const rowsEl = document.getElementById('actor-rows');
+  rowsEl.innerHTML = '';
+  ALL_ACTORS.forEach(actor => {
+    const row = document.createElement('div');
+    row.className = `actor-row ${actor.row}`;
+    row.innerHTML = `<div class="actor-label"><div class="actor-icon">${actor.icon}</div><div class="actor-name">${actor.name}</div><div class="actor-sub">${actor.sub}</div></div>`;
+    const cells = document.createElement('div');
+    cells.className = 'step-cells';
+
+    steps.forEach(st => {
+      const cellData = st[actor.id];
+      const cell = document.createElement('div');
+      const isSelCol = selKey && selKey.startsWith(st.id+'-');
+      cell.className = 'step-cell' + (!cellData ? ' empty' : '') + (isSelCol ? ' col-sel' : '');
+      cell.dataset.sid = st.id;
+
+      if (cellData) {
+        const isSel = selKey === `${st.id}-${actor.id}`;
+        const relevantBadges = [...activeChk].filter(c =>
+          CHECKS[c] && CHECKS[c].sids && CHECKS[c].sids.includes(st.sid)
+        );
+        const badges = relevantBadges.length
+          ? `<div class="check-badges">${relevantBadges.map(c=>`<span class="check-badge">${CHECKS[c].icon} ${CHECKS[c].label}</span>`).join('')}</div>`
+          : '';
+        cell.innerHTML = `<div class="step-card ${cellData.c}${isSel?' selected':''}" data-sid="${st.id}" data-actor="${actor.id}">${cellData.t}${badges}</div>`;
+        cell.addEventListener('click', () => handleCellClick(st.id, actor.id, st));
+      }
+      cells.appendChild(cell);
+    });
+
+    row.appendChild(cells);
+    rowsEl.appendChild(row);
+  });
+
+  // Footer
+  document.getElementById('flow-footer-text').textContent = fd.label + ' — ' + fd.summary;
+}
+
+// ═══════════════════════════════════════════════════════
+// SELECTION
+// ═══════════════════════════════════════════════════════
+function handleCellClick(stepId, actor, stepObj) {
+  const key = `${stepId}-${actor}`;
+  if (selKey === key) { closeDetail(); return; }
+  selKey = key;
+  renderDetail(curFlow, stepId, actor, stepObj);
+  buildJourney(); // re-render to show selection highlight
+  document.getElementById('detail-panel').classList.add('open');
+  document.querySelector('.detail-scroll').scrollTop = 0;
+}
+
+function closeDetail() {
+  selKey = null;
+  document.getElementById('detail-panel').classList.remove('open');
+  buildJourney();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER DETAIL
+// ═══════════════════════════════════════════════════════
+function renderDetail(flow, stepId, actor, stepObj) {
+  const fd = SVC_FLOWS[curSvc][flow];
+  const d = stepObj.detail;
+  const sty = ACTOR_STYLES[actor] || ACTOR_STYLES['api'];
+
+  const relevantChks = [...activeChk].filter(c =>
+    CHECKS[c] && CHECKS[c].sids && CHECKS[c].sids.includes(stepObj.sid)
+  );
+  const chksHTML = relevantChks.length ? `
+    <div class="d-sec">Active checks at this step</div>
+    ${relevantChks.map(c=>`
+      <div class="chk-row">
+        <div class="chk-icon">${CHECKS[c].icon}</div>
+        <div><div class="chk-label">${CHECKS[c].label}</div><div class="chk-desc">${CHECKS[c].desc}</div></div>
+      </div>`).join('')}
+    <div class="divider"></div>
+  ` : '';
+
+  // Screenshots
+  const ssKey = i => `${curSvc}-${flow}-${stepId}-${actor}-${i}`;
+  const defaultSlots = (d.ss||[]).map((slot,i) => {
+    const k = ssKey(i), img = shots[k];
+    return img
+      ? `<div class="ss-slot filled" onclick="openLB('${k}')"><img src="${img}" alt="${slot.label}"><button class="ss-rm" onclick="rmShot(event,'${k}')">✕</button></div>`
+      : `<div class="ss-slot" onclick="trigUpload('${k}')"><div class="ss-icon">📱</div><div class="ss-label">${slot.label}</div><input type="file" accept="image/*" id="f-${k}" onchange="handleUpload(event,'${k}')"></div>`;
+  }).join('');
+
+  const addSlot = `<div class="ss-add" onclick="trigAdd('${curSvc}','${flow}','${stepId}','${actor}')"><div class="ss-plus">+</div><div class="ss-add-lbl">Add screenshot</div><input type="file" accept="image/*" id="add-${curSvc}-${flow}-${stepId}-${actor}" onchange="handleAdd(event,'${curSvc}','${flow}','${stepId}','${actor}')"></div>`;
+
+  const notifHTML = (d.notifies||[]).length
+    ? (d.notifies||[]).map(n=>`<div class="notif-item"><div class="ndot" style="background:${n.color}"></div>${n.label}</div>`).join('')
+    : '<div style="font-size:11.5px;color:var(--muted)">No cross-actor handoffs at this step</div>';
+
+  const svcLabel = {home:'🏠 Home',locker:'🔒 Locker',point:'📦 Collection Point',flex:'⚡ Flex'}[curSvc];
+
+  document.getElementById('d-content').innerHTML = `
+    <div class="flow-badge ${fd.badge}">${fd.label}</div>
+    <div class="d-step-num">Step ${stepId} · ${stepObj.phase} · ${svcLabel}</div>
+    <div class="d-step-title">${d.fullTitle}</div>
+    <div class="actor-pill" style="background:${sty.bg};color:${sty.color}">${ACTOR_NAMES[actor]||actor}</div>
+    <div class="d-sec">What happens</div>
+    <div class="d-desc">${d.desc}</div>
+    ${chksHTML}
+    <div class="divider"></div>
+    <div class="d-sec">Triggered by</div>
+    <div class="tag-wrap">${(d.triggers||[]).map(t=>`<span class="tag">→ ${t}</span>`).join('')}</div>
+    <div class="d-sec" style="margin-top:12px">Notifies / handoffs</div>
+    ${notifHTML}
+    <div class="divider"></div>
+    <div class="d-sec">Outputs</div>
+    <div class="tag-wrap">${(d.outputs||[]).map(o=>`<span class="tag">✓ ${o}</span>`).join('')}</div>
+    <div class="d-sec" style="margin-top:12px">Step type</div>
+    <div class="tag-wrap">${(d.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    <div class="divider"></div>
+    <div class="d-sec">App screenshots <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:8.5px;color:var(--muted)">— click to upload or enlarge</span></div>
+    <div class="ss-row" id="ss-row">${defaultSlots}${addSlot}</div>
+  `;
+}
+
+function refreshDetailChecks() {
+  if (!selKey) return;
+  const [sid, actor] = selKey.match(/^(\d+)-(.+)$/).slice(1);
+  const step = SVC_FLOWS[curSvc][curFlow].steps.find(s => s.id === parseInt(sid));
+  if (step && step[actor]) renderDetail(curFlow, parseInt(sid), actor, step);
+}
+
+// Screenshots
+function trigUpload(k) { document.getElementById('f-'+k)?.click(); }
+function handleUpload(e,k) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{shots[k]=ev.target.result; refreshDetailChecks();}; r.readAsDataURL(f); }
+function trigAdd(svc,flow,sid,actor) { document.getElementById(`add-${svc}-${flow}-${sid}-${actor}`)?.click(); }
+function handleAdd(e,svc,flow,sid,actor) { const f=e.target.files[0]; if(!f)return; let i=0; while(shots[`${svc}-${flow}-${sid}-${actor}-${i}`])i++; const r=new FileReader(); r.onload=ev=>{shots[`${svc}-${flow}-${sid}-${actor}-${i}`]=ev.target.result; refreshDetailChecks();}; r.readAsDataURL(f); }
+function rmShot(e,k){ e.stopPropagation(); delete shots[k]; refreshDetailChecks(); }
+function openLB(k){ document.getElementById('lb-img').src=shots[k]||''; document.getElementById('lightbox').classList.add('open'); }
+function closeLB(){ document.getElementById('lightbox').classList.remove('open'); }
+function lbBgClick(e){ if(e.target===document.getElementById('lightbox')) closeLB(); }
+
+// ═══════════════════════════════════════════════════════
+// SERVICE SWITCH
+// ═══════════════════════════════════════════════════════
+document.querySelectorAll('[data-svc]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-svc]').forEach(b => b.classList.remove('svc-active'));
+    btn.classList.add('svc-active');
+    curSvc = btn.dataset.svc;
+    // Default to happy flow for new service
+    curFlow = 'happy';
+    activeChk.clear();
+    closeDetail();
+    renderCheckChips();
+    renderFlowChips();
+    buildJourney();
+  });
+});
+
+document.getElementById('d-close').addEventListener('click', closeDetail);
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+renderCheckChips();
+renderFlowChips();
+buildJourney();
+loadData(); // ← fetch Sheet data and re-render if available
+</script>
+</body>
+</html>
