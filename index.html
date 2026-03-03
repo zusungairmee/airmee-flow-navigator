@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Airmee — Delivery Flow Navigator</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Google Identity Services + Drive API -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -210,6 +212,15 @@ body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text)
 .lb-inner img { max-width:100%; max-height:90vh; border-radius:12px; display:block; }
 .lb-close { position:absolute; top:-11px; right:-11px; width:26px; height:26px; background:#fff; border-radius:50%; border:none; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,.3); }
 .lb-close:hover { background:var(--a-red-l); color:var(--a-red-d); }
+
+/* Google Drive Auth Banner */
+.gdrive-banner { position:fixed; bottom:32px; right:16px; background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:10px 14px; font-size:11.5px; color:var(--text-2); box-shadow:0 4px 16px rgba(0,0,0,.10); z-index:8000; display:flex; align-items:center; gap:10px; max-width:320px; transition:opacity .2s; }
+.gdrive-banner.hidden { display:none; }
+.gdrive-btn { background:var(--a-green); color:#fff; border:none; border-radius:7px; padding:5px 12px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.gdrive-btn:hover { background:var(--a-green-d); }
+.gdrive-btn.connected { background:#E8F5E9; color:var(--a-green-d); border:1.5px solid var(--a-green); }
+.ss-uploading { opacity:.5; pointer-events:none; }
+.ss-slot .ss-spinner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.7); font-size:18px; }
 
 /* Footer */
 .flow-footer { border-top:1px solid var(--border); padding:9px 16px; background:var(--bg); flex-shrink:0; }
@@ -470,7 +481,21 @@ function setDataBanner(state) {
 // LOAD DATA — SHEET OR FALLBACK
 // ═══════════════════════════════════════════════════════
 async function refreshData() {
-  if (!SHEET_CSV_URL) { setDataBanner('fallback'); return; }
+  if (!SHEET_CSV_URL) {
+    setDataBanner('fallback');
+    // Show a tooltip/alert to guide the user
+    const btn = document.getElementById('refresh-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '⚠ No Sheet URL set';
+    btn.style.background = 'rgba(245,158,11,0.3)';
+    btn.style.borderColor = 'rgba(245,158,11,0.6)';
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.background = '';
+      btn.style.borderColor = '';
+    }, 3000);
+    return;
+  }
   const btn = document.getElementById('refresh-btn');
   const icon = document.getElementById('refresh-icon');
   if (btn) btn.disabled = true;
@@ -1088,7 +1113,7 @@ const pointFlows = {
       ),
       s(8,'collect','Consumer Collects','Pickup',
         { consumer:{c:'consumer',t:'Arrive at store with QR / tracking ID'},
-          api:{c:'happy',t:'Pickup confirmed — shipment closed'},
+          api:{c:'happy',t:'Customer collects the parcel and the shipment is completed'},
           admin:{c:'admin',t:'Order marked: Picked Up'} },
         { actor:'consumer', fullTitle:'Consumer Collects at Collection Point',
           desc:'Consumer arrives at store. Presents QR code, tracking ID, or shipping ID. Store staff retrieves parcel from shelf, counter, or internal locker. ID check performed if required. Pickup confirmed.',
@@ -1170,59 +1195,59 @@ const flexFlows = {
     label:'✅ Successful Conversion', badge:'happy', color:'var(--a-green)', summary:'Consumer converts home delivery to locker or collection point. Delivery executes to converted location.',
     steps:[
       s(1,'flex-booking','Home Delivery Booked','Checkout',
-        {retailer:{c:'retailer',t:'Books standard home delivery shipment via API'}, api:{c:'api',t:'Creates home delivery shipment — evaluates Flex eligibility at booking'}, consumer:{c:'consumer',t:'Selects home delivery at checkout'}, admin:{c:'admin',t:'Flex zone + service config read at evaluation'}},
+        {retailer:{c:'retailer',t:'Books standard home delivery shipment via API'}, api:{c:'api',t:'Creates home delivery shipment — evaluates Flex eligibility at booking'}, consumer:{c:'consumer',t:'Customer chooses home delivery during checkout'}, admin:{c:'admin',t:'Flex zone + service config read at evaluation'}},
         {actor:'retailer',fullTitle:'Home Delivery Booked — Flex Eligibility Evaluated',
           desc:'Consumer completes checkout with home delivery. Retailer sends booking request. Airmee creates the shipment and immediately evaluates Flex eligibility:\n\n✅ Eligible if: Flex is enabled for the zone AND none of the following checks are on the shipment: ID check, Strict ID check, Min age check, BankID check, BankID age check.\n\n⚙️ Flex is enabled at the zone level in the Admin Dashboard per retailer account. Individual services (locker, collection point) can also be enabled/disabled per account.',
-          triggers:['Consumer confirms order','Retailer sends booking request'],notifies:[{color:'var(--c-retailer-m)',label:'Books standard home delivery shipment via API'},{color:'var(--c-api-m)',label:'Creates home delivery shipment — evaluates Flex eligibility at booking'},{color:'var(--c-consumer-m)',label:'Selects home delivery at checkout'},{color:'var(--c-admin-m)',label:'Flex zone + service config read at evaluation'}],
+          triggers:['Consumer confirms order','Retailer sends booking request'],notifies:[{color:'var(--c-retailer-m)',label:'Books standard home delivery shipment via API'},{color:'var(--c-api-m)',label:'Creates home delivery shipment — evaluates Flex eligibility at booking'},{color:'var(--c-consumer-m)',label:'Customer chooses home delivery during checkout'},{color:'var(--c-admin-m)',label:'Flex zone + service config read at evaluation'}],
           outputs:['Shipment ID created','Status: Booked','Flex eligibility flag set'],tags:['Automated','API','Flex Eligibility'],ss:[]}
       ),
       s(2,'flex-presented','Flex Option Presented','Tracking / App',
-        {api:{c:'api',t:'Confirms eligibility at render time — pre-selects nearest eligible PuP or profile-preferred PuP'}, consumer:{c:'consumer',t:'Opens tracking page or consumer app — sees Flex conversion option'}},
+        {api:{c:'api',t:'Confirms eligibility and pre-selects the nearest or profile-preferred locker/service point when showing the Flex option'}, consumer:{c:'consumer',t:'Opens tracking page or consumer app — sees Flex conversion option'}},
         {actor:'api',fullTitle:'Flex Option Presented to Consumer',
           desc:'Consumer opens the tracking page or consumer app. System re-confirms eligibility and presents the Flex option if:\n- Flex is enabled for the zone\n- Shipment passes eligibility rules\n- Consumer has Flex enabled in their profile (or it is on by default)\n\nA locker or service point is pre-selected automatically based on:\n1. Consumer\'s profile-preferred PuP (if set), OR\n2. Nearest eligible PuP based on the shipment zip code centroid\n\nConsumer may optionally enter a different zip code to search for other locations.',
-          triggers:['Consumer opens tracking page or app','Shipment is eligible','Flex is zone-enabled'],notifies:[{color:'var(--c-api-m)',label:'Confirms eligibility at render time — pre-selects nearest eligible PuP or profile-preferred PuP'},{color:'var(--c-consumer-m)',label:'Opens tracking page or consumer app — sees Flex conversion option'}],
+          triggers:['Consumer opens tracking page or app','Shipment is eligible','Flex is zone-enabled'],notifies:[{color:'var(--c-api-m)',label:'Confirms eligibility and pre-selects the nearest or profile-preferred locker/service point when showing the Flex option'},{color:'var(--c-consumer-m)',label:'Opens tracking page or consumer app — sees Flex conversion option'}],
           outputs:['Flex UI visible','PuP pre-selected','Eligible services shown'],tags:['Consumer Facing','Tracking Page','Consumer App','Pre-selection'],ss:[]}
       ),
       s(3,'flex-select','Select PuP','Tracking / App',
-        {api:{c:'api',t:'Returns up to 15 closest eligible PuPs based on zip code centroid | Filters by eligibility rules and enabled services'}, consumer:{c:'consumer',t:'Browses list or map view — optionally searches by zip — selects locker or collection point'}},
+        {api:{c:'api',t:'Returns up to 15 nearby eligible lockers or service points based on the entered zip code, filtering out ineligible options'}, consumer:{c:'consumer',t:'Browses list or map view — optionally searches by zip — selects locker or collection point'}},
         {actor:'api',fullTitle:'Consumer Selects Pickup Location',
           desc:'Consumer selects a PuP from the pre-populated list or map view. Both views show:\n- Name\n- Address\n- Opening hours\n\nList view: distance-sorted, max 15 results.\nMap view: interactive map with selectable markers.\n\nConsumer may enter any zip code (including one different from the shipment address) to search for nearby PuPs. System retrieves the 15 closest eligible locations based on the zip code centroid.\n\nIneligible PuPs (e.g. lockers when ID check is present) are never displayed.',
-          triggers:['Consumer opens Flex UI','Zip code entered (optional)'],notifies:[{color:'var(--c-api-m)',label:'Returns up to 15 closest eligible PuPs based on zip code centroid | Filters by eligibility rules and enabled services'},{color:'var(--c-consumer-m)',label:'Browses list or map view — optionally searches by zip — selects locker or collection point'}],
+          triggers:['Consumer opens Flex UI','Zip code entered (optional)'],notifies:[{color:'var(--c-api-m)',label:'Returns up to 15 nearby eligible lockers or service points based on the entered zip code, filtering out ineligible options'},{color:'var(--c-consumer-m)',label:'Browses list or map view — optionally searches by zip — selects locker or collection point'}],
           outputs:['PuP selected','Confirmation dialogue triggered'],tags:['Consumer Action','List View','Map View','Zip Search','Eligibility Filter'],ss:[]}
       ),
       s(4,'flex-confirm','Confirm Conversion','Tracking / App',
-        {api:{c:'api',t:'Saves service conversion — updates shipment to new service and PuP location'}, sms:{c:'sms',t:'📱 Flex conversion confirmed: \'Din leverans har ändrats till [LOCATION_NAME]. Du får ett nytt SMS när paketet är klart att hämtas.\''}, consumer:{c:'consumer',t:'Reviews selection in confirmation dialogue — confirms'}, admin:{c:'admin',t:'Conversion event logged — shipment record updated'}},
+        {api:{c:'api',t:'Updates the shipment with the selected locker/service point'}, sms:{c:'sms',t:'📱 Flex conversion confirmed: \'Din leverans har ändrats till [LOCATION_NAME]. Du får ett nytt SMS när paketet är klart att hämtas.\''}, consumer:{c:'consumer',t:'Reviews selection in confirmation dialogue — confirms'}, admin:{c:'admin',t:'Conversion event logged — shipment record updated'}},
         {actor:'api',fullTitle:'Service Conversion Confirmed & Saved',
           desc:'Consumer is shown a confirmation dialogue displaying the selected PuP name, address, and opening hours before committing. On confirmation:\n\n- Shipment service is updated from home delivery to the selected locker or collection point\n- Conversion is reflected immediately in tracking and downstream delivery execution\n- Conversion is valid until routing or the next delivery attempt\n- Consumer receives SMS/Push notification confirming the change\n- Conversion event is logged for Data & Analytics',
-          triggers:['Consumer confirms selection in dialogue'],notifies:[{color:'var(--c-api-m)',label:'Saves service conversion — updates shipment to new service and PuP location'},{color:'var(--c-sms-m)',label:'📱 Flex conversion confirmed: \'Din leverans har ändrats till [LOCATION_NAME]. Du får ett nytt SMS när paketet är klart att hämtas.\''},{color:'var(--c-consumer-m)',label:'Reviews selection in confirmation dialogue — confirms'},{color:'var(--c-admin-m)',label:'Conversion event logged — shipment record updated'}],
+          triggers:['Consumer confirms selection in dialogue'],notifies:[{color:'var(--c-api-m)',label:'Updates the shipment with the selected locker/service point'},{color:'var(--c-sms-m)',label:'📱 Flex conversion confirmed: \'Din leverans har ändrats till [LOCATION_NAME]. Du får ett nytt SMS när paketet är klart att hämtas.\''},{color:'var(--c-consumer-m)',label:'Reviews selection in confirmation dialogue — confirms'},{color:'var(--c-admin-m)',label:'Conversion event logged — shipment record updated'}],
           outputs:['Service conversion saved','Shipment updated','Conversion event logged','Consumer notified'],tags:['Automated','Conversion Event','SMS','Push','Data Logging'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
       ),
-      s(5,'flex-timing','Conversion Timing Branch','System',
-        {api:{c:'api',t:'Routing engine reads updated service at next route assignment'}, admin:{c:'admin',t:'Conversion timing logged — no manual action needed'}},
+      s(5,'flex-timing','Routing Update Timing','System',
+        {api:{c:'api',t:'Routing is updated with the new service at the next route planning cycle'}, admin:{c:'admin',t:'Conversion timing logged — no manual action needed'}},
         {actor:'api',fullTitle:'Conversion Timing — Three Valid Windows',
           desc:'The conversion can be made at three points in the shipment lifecycle:\n\n⏱ A — Before routing\nWide window. Routing engine picks up the conversion and routes directly to the PuP. No home delivery attempt is ever made.\n\n⏱ B — Before the delivery attempt (same-day, after routing)\nNarrower window. Shipment is already routed but courier has not yet departed or scanned the parcel at the door. Conversion re-routes the parcel.\n\n⏱ C — After a failed delivery attempt\nConsumer sees Flex as a recovery option after a failed attempt. One or more attempts already logged. Consumer initiates conversion manually.\n\nAll three paths converge at Terminal Inbound below.',
-          triggers:['Conversion saved','Route not yet assigned (A)','Route assigned, courier not yet at door (B)','Failed attempt logged (C)'],notifies:[{color:'var(--c-api-m)',label:'Routing engine reads updated service at next route assignment'},{color:'var(--c-admin-m)',label:'Conversion timing logged — no manual action needed'}],
+          triggers:['Conversion saved','Route not yet assigned (A)','Route assigned, courier not yet at door (B)','Failed attempt logged (C)'],notifies:[{color:'var(--c-api-m)',label:'Routing is updated with the new service at the next route planning cycle'},{color:'var(--c-admin-m)',label:'Conversion timing logged — no manual action needed'}],
           outputs:['Routing engine reads updated service at next assignment'],tags:['System Logic','Branching','Timing'],ss:[]}
       ),
       s(6,'flex-terminal','Terminal — Sort to PuP Route','Terminal',
-        {api:{c:'api',t:'Shipment routed to locker or collection point route'}, terminal:{c:'terminal',t:'Scan parcel inbound — sort to converted service route'}},
+        {api:{c:'api',t:'Shipment is assigned to the selected locker/service point route'}, terminal:{c:'terminal',t:'Terminal scans the parcel and directs it to the updated locker/service point route'}},
         {actor:'api',fullTitle:'Terminal Inbound — Sorted to Converted Service Route',
           desc:'Parcel arrives at (or returns to) terminal. Inbound scan performed. System routes parcel to the locker or collection point route based on the confirmed conversion. If this is after a failed home delivery attempt, parcel is re-sorted.',
-          triggers:['Parcel at terminal','Conversion confirmed','Next available route'],notifies:[{color:'var(--c-api-m)',label:'Shipment routed to locker or collection point route'},{color:'var(--c-terminal-m)',label:'Scan parcel inbound — sort to converted service route'}],
+          triggers:['Parcel at terminal','Conversion confirmed','Next available route'],notifies:[{color:'var(--c-api-m)',label:'Shipment is assigned to the selected locker/service point route'},{color:'var(--c-terminal-m)',label:'Terminal scans the parcel and directs it to the updated locker/service point route'}],
           outputs:['Sorted to locker or collection point route'],tags:['Manual','Terminal','Barcode Scan'],ss:[]}
       ),
       s(7,'flex-deliver','Deliver to PuP','Delivery',
-        {api:{c:'api',t:'Delivery confirmed — pickup notification triggered'}, courier:{c:'courier',t:'Deliver parcel to selected locker (insert + confirm) or collection point (double scan)'}, sms:{c:'sms',t:'📱 Pickup confirmed: \'Ditt paket finns nu på [LOCATION_NAME]. Hämta ut det med din QR-kod eller personnummer.\''}, consumer:{c:'consumer',t:'Receive pickup notification with QR code or pickup instructions'}},
+        {api:{c:'api',t:'Delivery confirmed — pickup notification triggered'}, courier:{c:'courier',t:'Courier delivers the parcel to the selected locker or service point'}, sms:{c:'sms',t:'📱 Pickup confirmed: \'Ditt paket finns nu på [LOCATION_NAME]. Hämta ut det med din QR-kod eller personnummer.\''}, consumer:{c:'consumer',t:'Receive pickup notification with QR code or pickup instructions'}},
         {actor:'api',fullTitle:'Parcel Delivered to Selected PuP',
           desc:'Courier delivers to the converted locker or collection point following the standard service flow:\n\n🔒 Locker: Courier scans parcel → locker door opens → parcel inserted → locker confirms deposit → QR/PIN generated for consumer.\n\n📦 Collection Point: Courier scans for double-scan drop-off → staff confirms → consumer notified.\n\nConsumer receives SMS/Push with pickup instructions.',
-          triggers:['Courier arrives at converted PuP','Parcel inserted or double-scanned'],notifies:[{color:'var(--c-api-m)',label:'Delivery confirmed — pickup notification triggered'},{color:'var(--c-courier-m)',label:'Deliver parcel to selected locker (insert + confirm) or collection point (double scan)'},{color:'var(--c-sms-m)',label:'📱 Pickup confirmed: \'Ditt paket finns nu på [LOCATION_NAME]. Hämta ut det med din QR-kod eller personnummer.\''},{color:'var(--c-consumer-m)',label:'Receive pickup notification with QR code or pickup instructions'}],
+          triggers:['Courier arrives at converted PuP','Parcel inserted or double-scanned'],notifies:[{color:'var(--c-api-m)',label:'Delivery confirmed — pickup notification triggered'},{color:'var(--c-courier-m)',label:'Courier delivers the parcel to the selected locker or service point'},{color:'var(--c-sms-m)',label:'📱 Pickup confirmed: \'Ditt paket finns nu på [LOCATION_NAME]. Hämta ut det med din QR-kod eller personnummer.\''},{color:'var(--c-consumer-m)',label:'Receive pickup notification with QR code or pickup instructions'}],
           outputs:['Status: Delivered to PuP','QR/PIN generated (locker)','Consumer notified'],tags:['Automated','Push Notification','SMS','Locker','Collection Point'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
       ),
       s(8,'flex-collect','Consumer Collects','Pickup',
-        {api:{c:'api',t:'Pickup confirmed — shipment closed'}, consumer:{c:'consumer',t:'Arrives at PuP — presents QR code, PIN, or ID — collects parcel'}, admin:{c:'admin',t:'Order marked: Picked Up | Conversion journey complete'}},
+        {api:{c:'api',t:'Customer collects the parcel and the shipment is completed'}, consumer:{c:'consumer',t:'Arrives at PuP — presents QR code, PIN, or ID — collects parcel'}, admin:{c:'admin',t:'Order marked: Picked Up | Conversion journey complete'}},
         {actor:'api',fullTitle:'Consumer Collects at Converted PuP',
           desc:'Consumer collects the parcel from the selected locker or collection point:\n\n🔒 Locker: Consumer scans QR code or enters PIN. Locker door opens. Pickup confirmed automatically.\n\n📦 Collection Point: Consumer presents QR code, tracking ID, or shipping ID to store staff. Staff retrieves parcel. ID check if required by retailer.\n\nShipment closed. Conversion journey logged end-to-end.',
-          triggers:['Consumer scans QR or presents ID at PuP'],notifies:[{color:'var(--c-api-m)',label:'Pickup confirmed — shipment closed'},{color:'var(--c-consumer-m)',label:'Arrives at PuP — presents QR code, PIN, or ID — collects parcel'},{color:'var(--c-admin-m)',label:'Order marked: Picked Up | Conversion journey complete'}],
+          triggers:['Consumer scans QR or presents ID at PuP'],notifies:[{color:'var(--c-api-m)',label:'Customer collects the parcel and the shipment is completed'},{color:'var(--c-consumer-m)',label:'Arrives at PuP — presents QR code, PIN, or ID — collects parcel'},{color:'var(--c-admin-m)',label:'Order marked: Picked Up | Conversion journey complete'}],
           outputs:['Status: Picked Up','Shipment closed','Journey complete'],tags:['Consumer Action','Locker','Collection Point'],ss:[]}
       ),
     ]
@@ -1238,10 +1263,10 @@ const flexFlows = {
           outputs:[],tags:[],ss:[]}
       ),
       s(2,'flex-presented','Flex Option Presented','Tracking / App',
-        {api:{c:'api',t:'Flex UI presented — full conversion window open, no routing lock'}, consumer:{c:'consumer',t:'Opens tracking page or app early — shipment not yet routed'}},
+        {api:{c:'api',t:'Flex option displayed (routing not yet locked)'}, consumer:{c:'consumer',t:'Opens tracking page or app early — shipment not yet routed'}},
         {actor:'api',fullTitle:'Flex Presented — Full Conversion Window Open',
           desc:'Consumer checks tracking shortly after ordering, before the shipment has been assigned to a route. This is the widest conversion window — any eligible PuP can be selected and the home delivery attempt will never be made.\n\nPre-selection logic applies: profile-preferred PuP or nearest eligible PuP.',
-          triggers:['Consumer opens tracking','Before route assignment'],notifies:[{color:'var(--c-api-m)',label:'Flex UI presented — full conversion window open, no routing lock'},{color:'var(--c-consumer-m)',label:'Opens tracking page or app early — shipment not yet routed'}],
+          triggers:['Consumer opens tracking','Before route assignment'],notifies:[{color:'var(--c-api-m)',label:'Flex option displayed (routing not yet locked)'},{color:'var(--c-consumer-m)',label:'Opens tracking page or app early — shipment not yet routed'}],
           outputs:['Flex UI visible','Wide conversion window'],tags:['Consumer Facing','Pre-Routing','Widest Window'],ss:[]}
       ),
       s(3,'flex-select','Select PuP','Tracking / App',
@@ -1292,31 +1317,31 @@ const flexFlows = {
           outputs:[],tags:[],ss:[]}
       ),
       s(2,'flex-presented','Flex Option Available','Tracking / App',
-        {api:{c:'api',t:'Flex UI available — consumer has not yet acted on it'}, consumer:{c:'consumer',t:'Flex option visible on tracking page during active delivery attempts'}},
+        {api:{c:'api',t:'Flex option visible to the customer (not yet used)'}, consumer:{c:'consumer',t:'Flex option visible on tracking page during active delivery attempts'}},
         {actor:'api',fullTitle:'Flex Option Available — Consumer Has Not Yet Converted',
           desc:'Consumer is aware of the Flex option but has not used it. Home delivery attempts proceed normally. Flex remains available until max attempts are reached, at which point the system takes over automatically.',
-          triggers:['Shipment eligible','Consumer has not converted'],notifies:[{color:'var(--c-api-m)',label:'Flex UI available — consumer has not yet acted on it'},{color:'var(--c-consumer-m)',label:'Flex option visible on tracking page during active delivery attempts'}],
+          triggers:['Shipment eligible','Consumer has not converted'],notifies:[{color:'var(--c-api-m)',label:'Flex option visible to the customer (not yet used)'},{color:'var(--c-consumer-m)',label:'Flex option visible on tracking page during active delivery attempts'}],
           outputs:['Flex UI visible and available'],tags:['Consumer Facing','Passive','Fallback Pending'],ss:[]}
       ),
       s(3,'flex-attempts','Home Delivery Attempts','At the Door',
-        {api:{c:'api',t:'Failed attempt logged — attempt count incremented'}, courier:{c:'courier',t:'Attempts home delivery — no answer or failed'}, sms:{c:'sms',t:'📱 Failed to deliver: \'Hej, tyvärr kunde vi inte leverera ditt paket. Vi försöker igen imorgon.\''}, consumer:{c:'consumer',t:'Receive failed delivery notice'}, admin:{c:'admin',t:'Attempt count monitored vs sender max-attempt limit'}},
+        {api:{c:'api',t:'Logs a failed delivery attempt and increments the attempt counter'}, courier:{c:'courier',t:'Attempts home delivery — no answer or failed'}, sms:{c:'sms',t:'📱 Failed to deliver: \'Hej, tyvärr kunde vi inte leverera ditt paket. Vi försöker igen imorgon.\''}, consumer:{c:'consumer',t:'Receive failed delivery notice'}, admin:{c:'admin',t:'Attempt count monitored vs sender max-attempt limit'}},
         {actor:'api',fullTitle:'Home Delivery Attempt(s) — Failed',
           desc:'Courier attempts home delivery. One or more attempts fail (no answer, no access, etc.). Each failure is logged and attempt count incremented.\n\nAfter each failed attempt, Flex is still available for manual consumer conversion. Once the maximum number of attempts configured on the sender account is reached, automatic Flex fallback triggers.',
-          triggers:['Delivery attempt fails','Attempt count < max'],notifies:[{color:'var(--c-api-m)',label:'Failed attempt logged — attempt count incremented'},{color:'var(--c-courier-m)',label:'Attempts home delivery — no answer or failed'},{color:'var(--c-sms-m)',label:'📱 Failed to deliver: \'Hej, tyvärr kunde vi inte leverera ditt paket. Vi försöker igen imorgon.\''},{color:'var(--c-consumer-m)',label:'Receive failed delivery notice'},{color:'var(--c-admin-m)',label:'Attempt count monitored vs sender max-attempt limit'}],
+          triggers:['Delivery attempt fails','Attempt count < max'],notifies:[{color:'var(--c-api-m)',label:'Logs a failed delivery attempt and increments the attempt counter'},{color:'var(--c-courier-m)',label:'Attempts home delivery — no answer or failed'},{color:'var(--c-sms-m)',label:'📱 Failed to deliver: \'Hej, tyvärr kunde vi inte leverera ditt paket. Vi försöker igen imorgon.\''},{color:'var(--c-consumer-m)',label:'Receive failed delivery notice'},{color:'var(--c-admin-m)',label:'Attempt count monitored vs sender max-attempt limit'}],
           outputs:['Attempt logged','Attempt count incremented','Flex still available'],tags:['Manual','Failed Attempt','Attempt Count'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
       ),
       s(4,'flex-auto','Auto Flex Fallback Triggered','System',
-        {api:{c:'api',t:'Max attempts reached — auto-conversion triggered | Resolves PuP from consumer profile or nearest eligible location'}, sms:{c:'sms',t:'📱 Auto Fallback: \'Din leverans har automatiskt konverterats till [LOCATION_NAME] efter misslyckade leveransförsök.\''}, consumer:{c:'consumer',t:'Receives conversion notification — no action required'}, admin:{c:'admin',t:'Auto-conversion event logged | Fallback source recorded (profile or nearest)'}},
+        {api:{c:'api',t:'After the final delivery attempt, the system automatically converts the shipment to the fallback locker/service point (using the consumer\'s profile or nearest eligible location)'}, sms:{c:'sms',t:'📱 Auto Fallback: \'Din leverans har automatiskt konverterats till [LOCATION_NAME] efter misslyckade leveransförsök.\''}, consumer:{c:'consumer',t:'Receives conversion notification — no action required'}, admin:{c:'admin',t:'Auto-conversion event logged | Fallback source recorded (profile or nearest)'}},
         {actor:'api',fullTitle:'Automatic Flex Conversion — Max Attempts Reached',
           desc:'Maximum home delivery attempts reached. System automatically converts the shipment:\n\n1️⃣ Profile-preferred PuP — if the consumer has a preferred fallback location configured in their consumer profile, the shipment converts to that location.\n\n2️⃣ Nearest eligible PuP — if no profile preference is set, system selects the nearest eligible locker or collection point based on the shipment zip code.\n\nNo consumer action is required. Consumer is notified via SMS/Push.\n\n⚠️ Out of scope (later stage): Retailer account-level auto fallback configuration.',
-          triggers:['Max delivery attempts reached','Flex enabled for zone','Consumer profile fallback or nearest PuP available'],notifies:[{color:'var(--c-api-m)',label:'Max attempts reached — auto-conversion triggered | Resolves PuP from consumer profile or nearest eligible location'},{color:'var(--c-sms-m)',label:'📱 Auto Fallback: \'Din leverans har automatiskt konverterats till [LOCATION_NAME] efter misslyckade leveransförsök.\''},{color:'var(--c-consumer-m)',label:'Receives conversion notification — no action required'},{color:'var(--c-admin-m)',label:'Auto-conversion event logged | Fallback source recorded (profile or nearest)'}],
+          triggers:['Max delivery attempts reached','Flex enabled for zone','Consumer profile fallback or nearest PuP available'],notifies:[{color:'var(--c-api-m)',label:'After the final delivery attempt, the system automatically converts the shipment to the fallback locker/service point (using the consumer\'s profile or nearest eligible location)'},{color:'var(--c-sms-m)',label:'📱 Auto Fallback: \'Din leverans har automatiskt konverterats till [LOCATION_NAME] efter misslyckade leveransförsök.\''},{color:'var(--c-consumer-m)',label:'Receives conversion notification — no action required'},{color:'var(--c-admin-m)',label:'Auto-conversion event logged | Fallback source recorded (profile or nearest)'}],
           outputs:['Shipment auto-converted to PuP','Conversion event logged','Consumer notified'],tags:['Automated','Profile Fallback','Nearest PuP','Max Attempts','Conversion Event'],ss:[{label:'SMS/Push screenshot',app:'sms'}]}
       ),
       s(5,'flex-terminal-f','Terminal — Re-sort to PuP Route','Terminal',
-        {api:{c:'api',t:'Shipment re-routed to PuP route after auto-conversion'}, terminal:{c:'terminal',t:'Re-scan parcel — sort to locker or collection point route'}},
+        {api:{c:'api',t:'Shipment is re-sorted to the selected locker/service point route after auto-conversion'}, terminal:{c:'terminal',t:'Terminal scans the parcel and directs it to the chosen locker or service point'}},
         {actor:'api',fullTitle:'Terminal Re-sort to PuP Route',
           desc:'Parcel returns to terminal following failed home delivery attempt(s). Re-scanned and sorted to the locker or collection point route based on the auto-conversion.',
-          triggers:['Auto-conversion confirmed','Next available route'],notifies:[{color:'var(--c-api-m)',label:'Shipment re-routed to PuP route after auto-conversion'},{color:'var(--c-terminal-m)',label:'Re-scan parcel — sort to locker or collection point route'}],
+          triggers:['Auto-conversion confirmed','Next available route'],notifies:[{color:'var(--c-api-m)',label:'Shipment is re-sorted to the selected locker/service point route after auto-conversion'},{color:'var(--c-terminal-m)',label:'Terminal scans the parcel and directs it to the chosen locker or service point'}],
           outputs:['Re-sorted to PuP route'],tags:['Manual','Terminal','Re-sort','Post Fallback'],ss:[]}
       ),
       s(6,'flex-deliver-f','Deliver to PuP','Delivery',
@@ -1339,24 +1364,24 @@ const flexFlows = {
     label:'🚫 Ineligible Shipment', badge:'fail', color:'var(--a-red)', summary:'Shipment has restricted checks present (ID/age/BankID). Flex UI not shown. Home delivery proceeds normally.',
     steps:[
       s(1,'flex-booking-i','Home Delivery Booked','Checkout',
-        {retailer:{c:'retailer',t:'Books home delivery shipment — one or more restricted checks present on shipment'}, api:{c:'api',t:'Creates shipment — evaluates Flex eligibility — marks INELIGIBLE'}, consumer:{c:'consumer',t:'Selects home delivery at checkout'}, admin:{c:'admin',t:'Shipment flagged ineligible for Flex at booking'}},
+        {retailer:{c:'retailer',t:'Retailer books a home delivery that includes an ID or age-verification requirement'}, api:{c:'api',t:'System creates the shipment and marks it as ineligible for Flex because of restricted checks'}, consumer:{c:'consumer',t:'Customer chooses home delivery during checkout'}, admin:{c:'admin',t:'Shipment flagged ineligible for Flex at booking'}},
         {actor:'retailer',fullTitle:'Home Delivery Booked — Flex Ineligible',
           desc:'Consumer completes checkout. Retailer sends booking with one or more checks that disqualify Flex for locker conversion:\n\n🚫 Disqualifying checks (any one of these blocks locker Flex):\n- ID check\n- Strict ID check\n- Minimum age check\n- BankID check\n- BankID age check\n\nFlex eligibility is evaluated at booking and flagged on the shipment. The Flex UI will not be shown to the consumer.\n\n⚠️ Note: Eligibility rules currently apply to locker conversion only. Collection point eligibility rules are TBD.',
-          triggers:['Consumer confirms order','Booking request received'],notifies:[{color:'var(--c-retailer-m)',label:'Books home delivery shipment — one or more restricted checks present on shipment'},{color:'var(--c-api-m)',label:'Creates shipment — evaluates Flex eligibility — marks INELIGIBLE'},{color:'var(--c-consumer-m)',label:'Selects home delivery at checkout'},{color:'var(--c-admin-m)',label:'Shipment flagged ineligible for Flex at booking'}],
+          triggers:['Consumer confirms order','Booking request received'],notifies:[{color:'var(--c-retailer-m)',label:'Retailer books a home delivery that includes an ID or age-verification requirement'},{color:'var(--c-api-m)',label:'System creates the shipment and marks it as ineligible for Flex because of restricted checks'},{color:'var(--c-consumer-m)',label:'Customer chooses home delivery during checkout'},{color:'var(--c-admin-m)',label:'Shipment flagged ineligible for Flex at booking'}],
           outputs:['Shipment created','Status: Booked','Flex flag: INELIGIBLE'],tags:['Automated','API','Ineligible','Checks Present'],ss:[]}
       ),
       s(2,'flex-no-ui','Flex Option Not Shown','Tracking / App',
-        {api:{c:'fail',t:'Eligibility check fails at render — Flex UI suppressed'}, consumer:{c:'consumer',t:'Opens tracking page or app — no Flex option visible'}},
+        {api:{c:'fail',t:'Flex option hidden because the shipment is ineligible'}, consumer:{c:'consumer',t:'Customer opens the tracking page/app; no Flex option appears'}},
         {actor:'api',fullTitle:'Flex UI Suppressed — Shipment Ineligible',
           desc:'Consumer opens the tracking page or consumer app. System checks Flex eligibility at render time. Because one or more disqualifying checks are present on the shipment, the Flex option is not displayed.\n\nConsumer sees the standard tracking view without the Flex conversion option. Home delivery proceeds normally.',
-          triggers:['Consumer opens tracking','Eligibility check returns INELIGIBLE'],notifies:[{color:'var(--c-api-m)',label:'Eligibility check fails at render — Flex UI suppressed'},{color:'var(--c-consumer-m)',label:'Opens tracking page or app — no Flex option visible'}],
+          triggers:['Consumer opens tracking','Eligibility check returns INELIGIBLE'],notifies:[{color:'var(--c-api-m)',label:'Flex option hidden because the shipment is ineligible'},{color:'var(--c-consumer-m)',label:'Customer opens the tracking page/app; no Flex option appears'}],
           outputs:['Flex UI not rendered','Standard tracking shown'],tags:['Consumer Facing','Ineligible','Checks Enforcement'],ss:[]}
       ),
       s(3,'flex-home-proceeds','Home Delivery Proceeds Normally','Delivery',
-        {api:{c:'api',t:'Standard home delivery flow'}, courier:{c:'courier',t:'Deliver parcel to home address — perform required checks at door'}, consumer:{c:'consumer',t:'Receive delivery as normal home delivery'}},
+        {api:{c:'api',t:'Continue normal home delivery process'}, courier:{c:'courier',t:'Deliver parcel to home address — perform required checks at door'}, consumer:{c:'consumer',t:'Receive delivery as normal home delivery'}},
         {actor:'api',fullTitle:'Standard Home Delivery — No Flex Conversion',
           desc:'Home delivery proceeds through the standard flow. All configured checks (ID, BankID, age, etc.) are performed at the door as normal. Flex is not available for this shipment.\n\nIf delivery fails, standard reschedule logic applies — NOT auto Flex fallback, since the shipment is ineligible.',
-          triggers:['Parcel sorted to home delivery route','No Flex conversion'],notifies:[{color:'var(--c-api-m)',label:'Standard home delivery flow'},{color:'var(--c-courier-m)',label:'Deliver parcel to home address — perform required checks at door'},{color:'var(--c-consumer-m)',label:'Receive delivery as normal home delivery'}],
+          triggers:['Parcel sorted to home delivery route','No Flex conversion'],notifies:[{color:'var(--c-api-m)',label:'Continue normal home delivery process'},{color:'var(--c-courier-m)',label:'Deliver parcel to home address — perform required checks at door'},{color:'var(--c-consumer-m)',label:'Receive delivery as normal home delivery'}],
           outputs:['Standard delivery executed','Checks performed at door'],tags:['Manual','Standard Flow','No Flex'],ss:[]}
       ),
     ]
@@ -1408,7 +1433,181 @@ let curSvc    = 'home';
 let curFlow   = 'happy';
 let activeChk = new Set();
 let selKey    = null;
-const shots   = {};
+// ═══════════════════════════════════════════════════════
+// GOOGLE DRIVE SCREENSHOT STORAGE
+// ═══════════════════════════════════════════════════════
+// ➡ SETUP: Paste your Google OAuth Client ID below
+// Get one free at: console.cloud.google.com
+// APIs & Services → Credentials → Create OAuth Client ID (Web application)
+// Authorised JS origins: https://zusungairmee.github.io
+const GDRIVE_CLIENT_ID = ''; // ← PASTE YOUR CLIENT ID HERE
+
+const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_FOLDER    = 'Airmee Flow Navigator Screenshots';
+
+let gToken     = null;   // current OAuth access token
+let gFolderId  = null;   // Drive folder ID (created/found on first upload)
+
+// shots{} — key → { src: base64orURL, driveId: string|null }
+// Persisted to localStorage as JSON (URLs only, not base64)
+const shots = (function(){
+  try {
+    const saved = localStorage.getItem('airmee_shots_v1');
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+})();
+
+function saveShots() {
+  try {
+    // Only persist entries that have a Drive URL (not raw base64)
+    const toSave = {};
+    Object.entries(shots).forEach(([k,v]) => {
+      if (v && typeof v === 'object' && v.url) toSave[k] = { url: v.url, driveId: v.driveId };
+      else if (v && typeof v === 'string' && v.startsWith('https://')) toSave[k] = { url: v };
+    });
+    localStorage.setItem('airmee_shots_v1', JSON.stringify(toSave));
+  } catch {}
+}
+
+function getShotSrc(k) {
+  const v = shots[k];
+  if (!v) return null;
+  if (typeof v === 'string') return v;
+  return v.url || v.src || null;
+}
+
+// ── Auth ──────────────────────────────────────────────
+function gdriveInit() {
+  if (!GDRIVE_CLIENT_ID) return; // no client ID configured — Drive features disabled
+  document.getElementById('gdrive-banner').classList.remove('hidden');
+
+  // Try to restore token from sessionStorage
+  try {
+    const saved = sessionStorage.getItem('gdrive_token');
+    if (saved) {
+      const t = JSON.parse(saved);
+      if (t.expires > Date.now()) { gToken = t.token; setGdriveConnected(); return; }
+    }
+  } catch {}
+}
+
+function gdriveAuth() {
+  if (!GDRIVE_CLIENT_ID) {
+    alert('Paste your Google OAuth Client ID into GDRIVE_CLIENT_ID in the HTML first.');
+    return;
+  }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID,
+    scope: GDRIVE_SCOPE,
+    callback: (resp) => {
+      if (resp.error) { console.error('Drive auth error', resp); return; }
+      gToken = resp.access_token;
+      // Cache token in sessionStorage (expires in ~1hr)
+      try {
+        sessionStorage.setItem('gdrive_token', JSON.stringify({
+          token: gToken, expires: Date.now() + (resp.expires_in - 60) * 1000
+        }));
+      } catch {}
+      setGdriveConnected();
+    }
+  });
+  client.requestAccessToken();
+}
+
+function setGdriveConnected() {
+  const btn = document.getElementById('gdrive-btn');
+  const status = document.getElementById('gdrive-status');
+  btn.textContent = '✓ Connected';
+  btn.className = 'gdrive-btn connected';
+  btn.onclick = null;
+  status.textContent = 'Screenshots will be saved to Google Drive.';
+  setTimeout(() => {
+    document.getElementById('gdrive-banner').classList.add('hidden');
+  }, 3000);
+}
+
+// ── Folder lookup / create ────────────────────────────
+async function getOrCreateFolder() {
+  if (gFolderId) return gFolderId;
+
+  // Search for existing folder
+  const q = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${GDRIVE_FOLDER}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+    headers: { Authorization: 'Bearer ' + gToken }
+  });
+  const data = await res.json();
+  if (data.files && data.files.length > 0) {
+    gFolderId = data.files[0].id;
+    return gFolderId;
+  }
+
+  // Create folder
+  const create = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + gToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: GDRIVE_FOLDER, mimeType: 'application/vnd.google-apps.folder' })
+  });
+  const folder = await create.json();
+  gFolderId = folder.id;
+  return gFolderId;
+}
+
+// ── Upload file to Drive, return shareable URL ────────
+async function uploadToDrive(file, filename) {
+  const folderId = await getOrCreateFolder();
+
+  // Upload via multipart
+  const meta = JSON.stringify({ name: filename, parents: [folderId] });
+  const form = new FormData();
+  form.append('metadata', new Blob([meta], { type: 'application/json' }));
+  form.append('file', file);
+
+  const upload = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + gToken },
+    body: form
+  });
+  const { id } = await upload.json();
+
+  // Make file publicly readable
+  await fetch(`https://www.googleapis.com/drive/v3/files/${id}/permissions`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + gToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+
+  // Return direct image URL via Drive thumbnail (works as <img src>)
+  return { id, url: `https://drive.google.com/thumbnail?id=${id}&sz=w800` };
+}
+
+// ── Core upload handler ───────────────────────────────
+async function processUpload(file, k, slotEl) {
+  // Show preview immediately from local file
+  const localSrc = await new Promise(res => {
+    const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file);
+  });
+  shots[k] = { src: localSrc, driveId: null, url: null };
+  refreshDetailChecks();
+
+  if (!gToken) {
+    // No Drive token — keep as session-only base64, prompt to connect
+    document.getElementById('gdrive-banner')?.classList.remove('hidden');
+    return;
+  }
+
+  // Upload to Drive
+  try {
+    const filename = `${k}-${Date.now()}.${file.name.split('.').pop()}`;
+    const { id, url } = await uploadToDrive(file, filename);
+    shots[k] = { src: url, url: url, driveId: id };
+    saveShots();
+    refreshDetailChecks();
+  } catch (err) {
+    console.error('Drive upload failed', err);
+    // Keep base64 preview, re-prompt auth if token expired
+    if (err.status === 401) { gToken = null; gdriveAuth(); }
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // ACTOR STYLE HELPERS
@@ -1616,7 +1815,7 @@ function renderDetail(flow, stepId, actor, stepObj) {
   // Screenshots
   const ssKey = i => `${curSvc}-${flow}-${stepId}-${actor}-${i}`;
   const defaultSlots = (d.ss||[]).map((slot,i) => {
-    const k = ssKey(i), img = shots[k];
+    const k = ssKey(i), img = getShotSrc(k);
     return img
       ? `<div class="ss-slot filled" onclick="openLB('${k}')"><img src="${img}" alt="${slot.label}"><button class="ss-rm" onclick="rmShot(event,'${k}')">✕</button></div>`
       : `<div class="ss-slot" onclick="trigUpload('${k}')"><div class="ss-icon">📱</div><div class="ss-label">${slot.label}</div><input type="file" accept="image/*" id="f-${k}" onchange="handleUpload(event,'${k}')"></div>`;
@@ -1663,11 +1862,30 @@ function refreshDetailChecks() {
 
 // Screenshots
 function trigUpload(k) { document.getElementById('f-'+k)?.click(); }
-function handleUpload(e,k) { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{shots[k]=ev.target.result; refreshDetailChecks();}; r.readAsDataURL(f); }
+function handleUpload(e,k) { const f=e.target.files[0]; if(!f)return; processUpload(f,k); }
 function trigAdd(svc,flow,sid,actor) { document.getElementById(`add-${svc}-${flow}-${sid}-${actor}`)?.click(); }
-function handleAdd(e,svc,flow,sid,actor) { const f=e.target.files[0]; if(!f)return; let i=0; while(shots[`${svc}-${flow}-${sid}-${actor}-${i}`])i++; const r=new FileReader(); r.onload=ev=>{shots[`${svc}-${flow}-${sid}-${actor}-${i}`]=ev.target.result; refreshDetailChecks();}; r.readAsDataURL(f); }
-function rmShot(e,k){ e.stopPropagation(); delete shots[k]; refreshDetailChecks(); }
-function openLB(k){ document.getElementById('lb-img').src=shots[k]||''; document.getElementById('lightbox').classList.add('open'); }
+function handleAdd(e,svc,flow,sid,actor) {
+  const f=e.target.files[0]; if(!f)return;
+  let i=0;
+  while(shots[`${svc}-${flow}-${sid}-${actor}-${i}`]) i++;
+  processUpload(f, `${svc}-${flow}-${sid}-${actor}-${i}`);
+}
+function rmShot(e,k){
+  e.stopPropagation();
+  const v = shots[k];
+  // Optionally delete from Drive (best-effort)
+  if (v && typeof v === 'object' && v.driveId && gToken) {
+    fetch(`https://www.googleapis.com/drive/v3/files/${v.driveId}`, {
+      method:'DELETE', headers:{ Authorization:'Bearer '+gToken }
+    }).catch(()=>{});
+  }
+  delete shots[k]; saveShots(); refreshDetailChecks();
+}
+function openLB(k){
+  const src = getShotSrc(k);
+  document.getElementById('lb-img').src = src || '';
+  document.getElementById('lightbox').classList.add('open');
+}
 function closeLB(){ document.getElementById('lightbox').classList.remove('open'); }
 function lbBgClick(e){ if(e.target===document.getElementById('lightbox')) closeLB(); }
 
@@ -1697,7 +1915,16 @@ document.getElementById('d-close').addEventListener('click', closeDetail);
 renderCheckChips();
 renderFlowChips();
 buildJourney();
-loadData(); // ← fetch Sheet data and re-render if available
+loadData();    // ← fetch Sheet data and re-render if available
+gdriveInit();  // ← init Google Drive screenshot storage
 </script>
+<!-- Google Drive Auth Banner -->
+<div id="gdrive-banner" class="gdrive-banner hidden">
+  <div style="flex:1">
+    <div style="font-weight:600;color:var(--text);margin-bottom:2px">📸 Screenshot storage</div>
+    <div id="gdrive-status">Sign in with Google to save screenshots to Drive permanently.</div>
+  </div>
+  <button id="gdrive-btn" class="gdrive-btn" onclick="gdriveAuth()">Sign in</button>
+</div>
 </body>
 </html>
